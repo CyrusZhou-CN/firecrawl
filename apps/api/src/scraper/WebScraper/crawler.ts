@@ -271,7 +271,7 @@ export class WebCrawler {
         return urlsHandler(urls);
       } else {
         let filteredLinks = this.filterLinks(
-          [...new Set(urls)],
+          [...new Set(urls)].filter(x => this.filterURL(x, this.initialUrl) !== null),
           leftOfLimit,
           this.maxCrawledDepth,
           fromMap,
@@ -456,7 +456,7 @@ export class WebCrawler {
         }
       }).filter(x => x !== null) as string[])];
     } catch (error) {
-      this.logger.error("Failed to call html-transformer! Falling back to cheerio...", {
+      this.logger.warn("Failed to call html-transformer! Falling back to cheerio...", {
         error,
         module: "scrapeURL", method: "extractMetadata"
       });
