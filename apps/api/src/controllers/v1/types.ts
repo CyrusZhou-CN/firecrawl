@@ -114,6 +114,7 @@ export const actionsSchema = z
       z.object({
         type: z.literal("click"),
         selector: z.string(),
+        all: z.boolean().default(false),
       }),
       z.object({
         type: z.literal("screenshot"),
@@ -314,7 +315,8 @@ export const extractV1Options = z
   .object({
     urls: url
       .array()
-      .max(10, "Maximum of 10 URLs allowed per request while in beta."),
+      .max(10, "Maximum of 10 URLs allowed per request while in beta.")
+      .optional(),
     prompt: z.string().max(10000).optional(),
     systemPrompt: z.string().max(10000).optional(),
     schema: z
@@ -354,6 +356,12 @@ export const extractV1Options = z
       .optional(),
   })
   .strict(strictMessage)
+  .refine(
+    (obj) => obj.urls || obj.prompt,
+    {
+      message: "Either 'urls' or 'prompt' must be provided.",
+    },
+  )
   .transform((obj) => ({
     ...obj,
     allowExternalLinks: obj.allowExternalLinks || obj.enableWebSearch,
