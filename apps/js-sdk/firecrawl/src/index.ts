@@ -69,6 +69,11 @@ export interface FirecrawlDocument<T = any, ActionsSchema extends (ActionsResult
   screenshot?: string;
   metadata?: FirecrawlDocumentMetadata;
   actions: ActionsSchema;
+  compare?: {
+    previousScrapeAt: string | null;
+    changeStatus: "new" | "same" | "changed" | "removed";
+    visibility: "visible" | "hidden";
+  };
   // v1 search only
   title?: string;
   description?: string;
@@ -79,7 +84,7 @@ export interface FirecrawlDocument<T = any, ActionsSchema extends (ActionsResult
  * Defines the options and configurations available for scraping web content.
  */
 export interface CrawlScrapeOptions {
-  formats?: ("markdown" | "html" | "rawHtml" | "content" | "links" | "screenshot" | "screenshot@fullPage" | "extract" | "json")[];
+  formats?: ("markdown" | "html" | "rawHtml" | "content" | "links" | "screenshot" | "screenshot@fullPage" | "extract" | "json" | "compare")[];
   headers?: Record<string, string>;
   includeTags?: string[];
   excludeTags?: string[];
@@ -922,6 +927,7 @@ export default class FirecrawlApp {
    * @param pollInterval - Time in seconds for job status checks.
    * @param idempotencyKey - Optional idempotency key for the request.
    * @param webhook - Optional webhook for the batch scrape.
+   * @param ignoreInvalidURLs - Optional flag to ignore invalid URLs.
    * @returns The response from the crawl operation.
    */
   async batchScrapeUrls(
