@@ -1,12 +1,14 @@
 import { z } from "zod";
 import {
   AuthCreditUsageChunk,
+  BaseScrapeOptions,
   ScrapeOptions,
   Document as V1Document,
   webhookSchema,
 } from "./controllers/v1/types";
 import { ExtractorOptions, Document } from "./lib/entities";
 import { InternalOptions } from "./scraper/scrapeURL";
+import type { CostTracking } from "./lib/extract/extraction-service";
 
 type Mode = "crawl" | "single_urls" | "sitemap";
 
@@ -34,7 +36,7 @@ export interface WebScraperOptions {
   url: string;
   mode: Mode;
   crawlerOptions?: any;
-  scrapeOptions: ScrapeOptions;
+  scrapeOptions: BaseScrapeOptions;
   internalOptions?: InternalOptions;
   team_id: string;
   origin?: string;
@@ -90,6 +92,7 @@ export interface FirecrawlJob {
   crawl_id?: string;
   tokens_billed?: number;
   sources?: Record<string, string[]>;
+  cost_tracking?: CostTracking;
 }
 
 export interface FirecrawlScrapeResponse {
@@ -132,11 +135,13 @@ export enum RateLimiterMode {
   Crawl = "crawl",
   CrawlStatus = "crawlStatus",
   Scrape = "scrape",
+  ScrapeAgentPreview = "scrapeAgentPreview",
   Preview = "preview",
   Search = "search",
   Map = "map",
   Extract = "extract",
   ExtractStatus = "extractStatus",
+  ExtractAgentPreview = "extractAgentPreview",
 }
 
 export type AuthResponse =
