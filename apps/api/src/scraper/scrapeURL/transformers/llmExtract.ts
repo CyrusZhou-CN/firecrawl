@@ -259,23 +259,6 @@ export async function generateCompletions({
     throw new Error("document.markdown is undefined -- this is unexpected");
   }
 
-  const { maxInputTokens, maxOutputTokens } = getModelLimits(
-    currentModel.modelId,
-  );
-  // Calculate 80% of max input tokens (for content)
-  const maxTokensSafe = Math.floor(maxInputTokens * 0.8);
-
-  // Use the new trimming function
-  const {
-    text: trimmedMarkdown,
-    numTokens,
-    warning: trimWarning,
-  } = trimToTokenLimit(markdown, maxTokensSafe, model.modelId, previousWarning);
-
-  // WE USE BIG MODELS NOW
-  // markdown = trimmedMarkdown;
-  // warning = trimWarning;
-
   try {
     const prompt =
       options.prompt !== undefined
@@ -300,16 +283,16 @@ export async function generateCompletions({
         return {
           extract,
           warning,
-          numTokens,
+          numTokens: result.usage?.promptTokens ?? 0,
           totalUsage: {
-            promptTokens: numTokens,
+            promptTokens: result.usage?.promptTokens ?? 0,
             completionTokens: result.usage?.completionTokens ?? 0,
-            totalTokens: numTokens + (result.usage?.completionTokens ?? 0),
+            totalTokens: result.usage?.promptTokens ?? 0 + (result.usage?.completionTokens ?? 0),
           },
           model: currentModel.modelId,
           cost: calculateCost(
             currentModel.modelId,
-            numTokens,
+            result.usage?.promptTokens ?? 0,
             result.usage?.completionTokens ?? 0,
           ),
         };
@@ -341,16 +324,16 @@ export async function generateCompletions({
             return {
               extract,
               warning,
-              numTokens,
+              numTokens: result.usage?.promptTokens ?? 0,
               totalUsage: {
-                promptTokens: numTokens,
+                promptTokens: result.usage?.promptTokens ?? 0,
                 completionTokens: result.usage?.completionTokens ?? 0,
-                totalTokens: numTokens + (result.usage?.completionTokens ?? 0),
+                totalTokens: result.usage?.promptTokens ?? 0 + (result.usage?.completionTokens ?? 0),
               },
               model: currentModel.modelId,
               cost: calculateCost(
                 currentModel.modelId,
-                numTokens,
+                result.usage?.promptTokens ?? 0,
                 result.usage?.completionTokens ?? 0,
               ),
             };
@@ -403,6 +386,8 @@ export async function generateCompletions({
     const repairConfig = {
       experimental_repairText: async ({ text, error }) => {
         // AI may output a markdown JSON code block. Remove it - mogery
+        logger.debug("Repairing text", { textType: typeof text, textPeek: JSON.stringify(text).slice(0, 100) + "...", error });
+
         if (typeof text === "string" && text.trim().startsWith("```")) {
           if (text.trim().startsWith("```json")) {
             text = text.trim().slice("```json".length).trim();
@@ -417,8 +402,11 @@ export async function generateCompletions({
           // If this fixes the JSON, just return it. If not, continue - mogery
           try {
             JSON.parse(text);
+            logger.debug("Repaired text with string manipulation");
             return text;
-          } catch (_) {}
+          } catch (e) {
+            logger.error("Even after repairing, failed to parse JSON", { error: e });
+          }
         }
 
         try {
@@ -433,6 +421,7 @@ export async function generateCompletions({
               },
             },
           });
+          logger.debug("Repaired text with LLM");
           return fixedText;
         } catch (repairError) {
           lastError = repairError as Error;
@@ -465,6 +454,12 @@ export async function generateCompletions({
     //   `logs/generateObjectConfig-${now}.json`,
     //   JSON.stringify(generateObjectConfig, null, 2),
     // );
+
+    logger.debug("Generating object...", { generateObjectConfig: {
+      ...generateObjectConfig,
+      prompt: generateObjectConfig.prompt.slice(0, 100) + "...",
+      system: generateObjectConfig.system?.slice(0, 100) + "...",
+    }, model, retryModel });
 
     let result: { object: any; usage: TokenUsage } | undefined;
     try {
@@ -541,13 +536,13 @@ export async function generateCompletions({
     }
 
     // Since generateObject doesn't provide token usage, we'll estimate it
-    const promptTokens = numTokens;
-    const completionTokens = result?.usage?.completionTokens ?? 0;
+    const promptTokens = result.usage?.promptTokens ?? 0;
+    const completionTokens = result.usage?.completionTokens ?? 0;
 
     return {
       extract,
       warning,
-      numTokens,
+      numTokens: promptTokens,
       totalUsage: {
         promptTokens,
         completionTokens,
@@ -562,7 +557,7 @@ export async function generateCompletions({
       throw new LLMRefusalError(error.message);
     }
     logger.error("LLM extraction failed", {
-      error: lastError.message,
+      error: lastError,
       model: currentModel.modelId,
       mode,
     });
@@ -601,6 +596,7 @@ export async function performLLMExtract(
         extractOptions: generationOptions,
         urls: [meta.url],
         useAgent: isAgentExtractModelValid(meta.options.extract?.agent?.model),
+        scrapeId: meta.id,
       });
 
     if (warning) {
@@ -761,6 +757,7 @@ export function removeDefaultProperty(schema: any): any {
 
 export async function generateSchemaFromPrompt(
   prompt: string,
+  logger: Logger,
 ): Promise<{ extract: any; cost: number }> {
   const model = getModel("gpt-4o", "openai");
   const retryModel = getModel("gpt-4o-mini", "openai");

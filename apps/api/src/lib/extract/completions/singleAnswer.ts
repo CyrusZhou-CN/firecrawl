@@ -14,7 +14,9 @@ export async function singleAnswerCompletion({
   links,
   prompt,
   systemPrompt,
-  useAgent
+  useAgent,
+  extractId,
+  sessionId,
 }: {
   singleAnswerDocs: Document[];
   rSchema: any;
@@ -22,6 +24,8 @@ export async function singleAnswerCompletion({
   prompt: string;
   systemPrompt: string;
   useAgent: boolean;
+  extractId: string;
+  sessionId: string;
 }): Promise<{
   extract: any;
   tokenUsage: TokenUsage;
@@ -33,7 +37,11 @@ export async function singleAnswerCompletion({
 }> {
   const docsPrompt = `Today is: ` + new Date().toISOString() + `.\n` + prompt;
   const generationOptions: GenerateCompletionsOptions = {
-    logger: logger.child({ module: "extract", method: "generateCompletions" }),
+    logger: logger.child({
+      module: "extract",
+      method: "generateCompletions",
+      extractId,
+    }),
     options: {
       mode: "llm",
       systemPrompt:
@@ -51,6 +59,8 @@ export async function singleAnswerCompletion({
     extractOptions: generationOptions,
     urls: singleAnswerDocs.map(doc => doc.metadata.url || doc.metadata.sourceURL || ""),
     useAgent,
+    extractId,
+    sessionId,
   });
 
   const completion = {

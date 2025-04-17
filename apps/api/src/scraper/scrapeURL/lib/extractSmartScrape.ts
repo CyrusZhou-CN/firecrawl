@@ -10,12 +10,13 @@ import { parseMarkdown } from "../../../lib/html-to-markdown";
 import { getModel } from "../../../lib/generic-ai";
 import { TokenUsage } from "../../../controllers/v1/types";
 import type { SmartScrapeResult } from "./smartScrape";
+import { ExtractStep } from "src/lib/extract/extract-redis";
 
 const commonSmartScrapeProperties = {
   shouldUseSmartscrape: {
     type: "boolean",
     description:
-      "Set to `true` if any of the extractedData is null and you think you can find the information by performing user-like interactions (e.g., clicking buttons/accordions to reveal hidden text, login, inputs etc.). SmartScrape can perform these actions to access the data.",
+      "Set to `true` if any of the extractedData is null and you think you can find the information by performing user-like interactions (e.g., clicking buttons/accordions to reveal hidden text, login, inputs, pagination etc.). SmartScrape can perform these actions to access the data.",
   },
   // Note: extractedData is added dynamically in prepareSmartScrapeSchema
 };
@@ -180,14 +181,47 @@ export function prepareSmartScrapeSchema(
   return { schemaToUse: wrappedSchema };
 }
 
+// Resolve all $defs references in the schema
+const resolveRefs = (obj: any, defs: any): any => {
+  if (!obj || typeof obj !== 'object') return obj;
+
+  if (obj.$ref && typeof obj.$ref === 'string') {
+    // Handle $ref references
+    const refPath = obj.$ref.split('/');
+    if (refPath[0] === '#' && refPath[1] === '$defs') {
+      const defName = refPath[refPath.length - 1];
+      return resolveRefs({ ...defs[defName] }, defs);
+    }
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => resolveRefs(item, defs));
+  }
+
+  // Handle objects
+  const resolved: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '$defs') continue;
+    resolved[key] = resolveRefs(value, defs);
+  }
+  return resolved;
+};
+
 export async function extractData({
   extractOptions,
   urls,
   useAgent,
+  extractId,
+  sessionId,
+  scrapeId,
 }: {
   extractOptions: GenerateCompletionsOptions;
   urls: string[];
   useAgent: boolean;
+  extractId?: string;
+  sessionId?: string;
+  scrapeId?: string;
 }): Promise<{
   extractedDataArray: any[];
   warning: any;
@@ -208,11 +242,19 @@ export async function extractData({
   // TODO: remove the "required" fields here!! it breaks o3-mini
 
   if (!schema && extractOptions.options.prompt) {
-    logger.info("Generating schema from prompt");
-    const genRes = await generateSchemaFromPrompt(extractOptions.options.prompt);
+    const genRes = await generateSchemaFromPrompt(extractOptions.options.prompt, logger);
     otherCallCount++;
     otherCost += genRes.cost;
     schema = genRes.extract;
+  }
+
+  if (schema) {
+    const defs = schema.$defs || {};
+    schema = resolveRefs(schema, defs);
+    delete schema.$defs;
+    logger.info("Resolved schema refs", {
+      schema,
+    });
   }
 
   const { schemaToUse } = prepareSmartScrapeSchema(schema, logger, isSingleUrl);
@@ -222,6 +264,9 @@ export async function extractData({
   };
   // console.log("schema", schema);
   // console.log("schemaToUse", schemaToUse);
+  logger.info("Generated schema from prompt", {
+    schemaToUse,
+  });
 
   let extract: any,
     warning: string | undefined,
@@ -247,7 +292,7 @@ export async function extractData({
   } catch (error) {
     logger.error(
       "failed during extractSmartScrape.ts:generateCompletions",
-      error,
+      { error },
     );
     // console.log("failed during extractSmartScrape.ts:generateCompletions", error);
   }
@@ -258,41 +303,55 @@ export async function extractData({
   // console.log("smartscrape_reasoning", extract?.smartscrape_reasoning);
   // console.log("smartscrape_prompt", extract?.smartscrape_prompt);
   try {
-    console.log("=========================================");
-    console.log(
-      "useAgent:",
+    logger.info("Smart schema resolved", {
       useAgent,
-      "shouldUseSmartscrape:",
-      extract?.shouldUseSmartscrape,
-    );
-    console.log("url:", urls);
-    console.log("prompt:", extract?.smartscrape_prompt);
-    console.log("=========================================");
+      shouldUseSmartscrape: extract?.shouldUseSmartscrape,
+      url: urls,
+      prompt: extract?.smartscrape_prompt,
+      providedExtractId: extractId,
+    })
 
     if (useAgent && extract?.shouldUseSmartscrape) {
       let smartscrapeResults: SmartScrapeResult[];
       if (isSingleUrl) {
         smartscrapeResults = [
-          await smartScrape(urls[0], extract?.smartscrape_prompt),
+          await smartScrape({
+            url: urls[0],
+            prompt: extract?.smartscrape_prompt,
+            sessionId,
+            extractId,
+            scrapeId,
+          }),
         ];
         smartScrapeCost += smartscrapeResults[0].tokenUsage;
         smartScrapeCallCount++;
       } else {
-        const pages = extract?.smartscrapePages;
+        const pages = extract?.smartscrapePages ?? [];
         //do it async promiseall instead
+        if (pages.length > 100) {
+          logger.warn("Smart scrape pages limit exceeded, only first 100 pages will be scraped", {
+            pagesLength: pages.length,
+            extractId,
+            scrapeId,
+          });
+        }
+
         smartscrapeResults = await Promise.all(
-          pages.map(async (page) => {
-            return await smartScrape(
-              urls[page.page_index],
-              page.smartscrape_prompt,
-            );
+          pages.slice(0, 100).map(async (page) => {
+            return await smartScrape({
+              url: urls[page.page_index],
+              prompt: page.smartscrape_prompt,
+              sessionId,
+              extractId,
+              scrapeId,
+            });
           }),
         );
         smartScrapeCost += smartscrapeResults.reduce(
           (acc, result) => acc + result.tokenUsage,
           0,
         );
-        smartScrapeCallCount += pages.length;
+        smartScrapeCallCount += smartscrapeResults.length;
       }
       // console.log("smartscrapeResults", smartscrapeResults);
 
@@ -311,6 +370,8 @@ export async function extractData({
           const newExtractOptions = {
             ...extractOptions,
             markdown: markdown,
+            model: getModel("gemini-2.5-pro-preview-03-25", "vertex"),
+            retryModel: getModel("gemini-2.5-pro-preview-03-25", "google"),
           };
           const { extract, warning, totalUsage, model, cost } =
             await generateCompletions(newExtractOptions);
