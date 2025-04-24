@@ -207,12 +207,9 @@ export function calculateCost(
     let outputCost = 0;
     if (inputTokens <= 200000) {
       inputCost = 1.25;
-    } else {
-      inputCost = 2.5;
-    }
-    if (outputTokens <= 200000) {
       outputCost = 10.0;
     } else {
+      inputCost = 2.5;
       outputCost = 15.0;
     }
     modelCost = { input_cost: inputCost, output_cost: outputCost };
@@ -298,6 +295,10 @@ export async function generateCompletions({
             result.usage?.promptTokens ?? 0,
             result.usage?.completionTokens ?? 0,
           ),
+          tokens: {
+            input: result.usage?.promptTokens ?? 0,
+            output: result.usage?.completionTokens ?? 0,
+          }
         });
 
         extract = result.text;
@@ -350,6 +351,10 @@ export async function generateCompletions({
                 result.usage?.promptTokens ?? 0,
                 result.usage?.completionTokens ?? 0,
               ),
+              tokens: {
+                input: result.usage?.promptTokens ?? 0,
+                output: result.usage?.completionTokens ?? 0,
+              }
             });
 
             return {
@@ -681,7 +686,7 @@ export async function performLLMExtract(
       await extractData({
         extractOptions: generationOptions,
         urls: [meta.url],
-        useAgent: isAgentExtractModelValid(meta.options.extract?.agent?.model),
+        useAgent: false,
         scrapeId: meta.id,
       });
 
@@ -840,6 +845,7 @@ export async function generateSchemaFromPrompt(
         }),
         model,
         retryModel,
+        markdown: "",
         options: {
           mode: "llm",
           systemPrompt: `You are a schema generator for a web scraping system. Generate a JSON schema based on the user's prompt.
