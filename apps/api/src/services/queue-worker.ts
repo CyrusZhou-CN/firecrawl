@@ -85,6 +85,7 @@ import Express from "express";
 import http from "http";
 import https from "https";
 import { cacheableLookup } from "../scraper/scrapeURL/lib/cacheableLookup";
+import { robustFetch } from "../scraper/scrapeURL/lib/fetch";
 
 configDotenv();
 
@@ -238,11 +239,15 @@ async function finishCrawlIfNeeded(job: Job & { id: string }, sc: StoredCrawl) {
         );
         await addScrapeJobs(lockedJobs);
 
-        logger.info("Added jobs, not going for the full finish", {
-          lockedJobs: lockedJobs.length,
-        });
+        if (lockedJobs.length > 0) {
+          logger.info("Added jobs, not going for the full finish", {
+            lockedJobs: lockedJobs.length,
+          });
 
-        return;
+          return;
+        } else {
+          logger.info("No jobs added (all discovered URLs were locked), finishing crawl");
+        }
       }
     }
 
@@ -1384,7 +1389,7 @@ async function processJob(job: Job & { id: string }, token: string) {
         }
       }
 
-      if (job.data.scrapeOptions.proxy === "stealth") {
+      if (doc.metadata?.proxyUsed === "stealth") {
         creditsToBeBilled += 4;
       }
 
@@ -1546,10 +1551,25 @@ async function processJob(job: Job & { id: string }, token: string) {
 const app = Express();
 
 app.get("/liveness", (req, res) => {
+  // stalled check
   if (isWorkerStalled) {
     res.status(500).json({ ok: false });
   } else {
-    res.status(200).json({ ok: true });
+    // networking check
+    robustFetch({
+      url: "http://firecrawl-app-service:3002",
+      method: "GET",
+      mock: null,
+      logger: _logger,
+      abort: AbortSignal.timeout(5000),
+      ignoreResponse: true,
+    })
+      .then(() => {
+        res.status(200).json({ ok: true });
+      }).catch(e => {
+        _logger.error("WORKER NETWORKING CHECK FAILED", { error: e });
+        res.status(500).json({ ok: false });
+      });
   }
 });
 
