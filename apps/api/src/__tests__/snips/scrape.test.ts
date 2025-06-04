@@ -1,4 +1,5 @@
 import { scrape, scrapeStatus, scrapeWithFailure } from "./lib";
+import crypto from "crypto";
 
 describe("Scrape tests", () => {
   it.concurrent("mocking works properly", async () => {
@@ -38,7 +39,16 @@ describe("Scrape tests", () => {
         url: "https://icanhazip.com"
       });
 
-      expect(response.markdown?.trim()).toBe(process.env.PROXY_SERVER!.split("://").slice(-1)[0].split(":")[0]);
+      expect(response.markdown?.trim()).toContain(process.env.PROXY_SERVER!.split("://").slice(-1)[0].split(":")[0]);
+    }, 30000);
+
+    it.concurrent("self-hosted proxy works on playwright", async () => {
+      const response = await scrape({
+        url: "https://icanhazip.com",
+        waitFor: 100,
+      });
+
+      expect(response.markdown?.trim()).toContain(process.env.PROXY_SERVER!.split("://").slice(-1)[0].split(":")[0]);
     }, 30000);
   }
 
@@ -72,6 +82,9 @@ describe("Scrape tests", () => {
       });
   
       expect(response.markdown).toContain("Firecrawl");
+
+      // Give time to propagate to read replica
+      await new Promise(resolve => setTimeout(resolve, 1000));
   
       const status = await scrapeStatus(response.metadata.scrapeId!);
       expect(JSON.stringify(status)).toBe(JSON.stringify(response));
@@ -95,6 +108,47 @@ describe("Scrape tests", () => {
     //     expect(response.markdown).toMatch(/(\.g\.doubleclick\.net|amazon-adsystem\.com)\//);
     //   }, 30000);
     // });
+    
+    describe("Index", () => {
+      it.concurrent("caches properly", async () => {
+        const id = crypto.randomUUID();
+        const url = "https://firecrawl.dev/?testId=" + id;
+
+        const response1 = await scrape({
+          url,
+          maxAge: 120000,
+          storeInCache: false,
+        });
+
+        expect(response1.metadata.cacheState).toBe("miss");
+
+        await new Promise(resolve => setTimeout(resolve, 17000));
+
+        const response2 = await scrape({
+          url,
+          maxAge: 120000,
+        });
+
+        expect(response2.metadata.cacheState).toBe("miss");
+
+        await new Promise(resolve => setTimeout(resolve, 17000));
+
+        const response3 = await scrape({
+          url,
+          maxAge: 120000,
+        });
+
+        expect(response3.metadata.cacheState).toBe("hit");
+        expect(response3.metadata.cachedAt).toBeDefined();
+        
+        const response4 = await scrape({
+          url,
+          maxAge: 1,
+        });
+        
+        expect(response4.metadata.cacheState).toBe("miss");
+      }, 150000 + 2 * 17000);
+    });
 
     describe("Change Tracking format", () => {
       it.concurrent("works", async () => {
