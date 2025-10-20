@@ -58,6 +58,8 @@ CREATE INDEX IF NOT EXISTS nuq_queue_scrape_queued_group_priority_idx ON nuq.que
 -- This index helps with owner-specific queries when group_id is NULL
 CREATE INDEX IF NOT EXISTS nuq_queue_scrape_queued_owner_no_group_idx ON nuq.queue_scrape (owner_id, priority ASC, created_at ASC) WHERE (status = 'queued'::nuq.job_status AND group_id IS NULL);
 
+CREATE INDEX IF NOT EXISTS nuq_queue_scrape_queued_complete_idx ON nuq.queue_scrape (owner_id, group_id, priority ASC, created_at ASC, id ASC) WHERE (status = 'queued'::nuq.job_status);
+
 CREATE TABLE IF NOT EXISTS nuq.queue_scrape_owner_concurrency (
     id uuid NOT NULL,
     current_concurrency int8 NOT NULL,
@@ -109,10 +111,10 @@ SELECT cron.schedule('nuq_queue_scrape_lock_reaper', '15 seconds', $$
     ORDER BY owner_id
   ),
   acquired_owner_locks AS (
-    SELECT
-      owner_id
-    FROM distinct_owners
-    WHERE pg_try_advisory_xact_lock(hashtext(owner_id::text)) = true
+    SELECT id as owner_id
+    FROM nuq.queue_scrape_owner_concurrency
+    WHERE id IN (SELECT owner_id FROM distinct_owners)
+    FOR UPDATE SKIP LOCKED
   ),
   distinct_groups AS (
     SELECT DISTINCT sj.group_id
@@ -122,10 +124,10 @@ SELECT cron.schedule('nuq_queue_scrape_lock_reaper', '15 seconds', $$
     ORDER BY sj.group_id
   ),
   acquired_group_locks AS (
-    SELECT
-      group_id
-    FROM distinct_groups
-    WHERE pg_try_advisory_xact_lock(hashtext(group_id::text)) = true
+    SELECT id as group_id
+    FROM nuq.queue_scrape_group_concurrency
+    WHERE id IN (SELECT group_id FROM distinct_groups)
+    FOR UPDATE SKIP LOCKED
   ),
   requeued AS (
     UPDATE nuq.queue_scrape
@@ -245,6 +247,7 @@ CREATE TABLE IF NOT EXISTS nuq.group_crawl (
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     finished_at timestamp with time zone,
     expires_at timestamp with time zone,
+    owner_id uuid,
     CONSTRAINT group_crawl_pkey PRIMARY KEY (id)
 );
 
