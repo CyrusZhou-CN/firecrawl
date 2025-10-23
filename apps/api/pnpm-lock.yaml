@@ -8,6 +8,7 @@ settings:
 overrides:
   brace-expansion@>=2.0.0 <=2.0.1: 2.0.2
   debug: '>=4.4.3'
+  uuid: <=10.0.0
 
 importers:
 
@@ -76,9 +77,6 @@ importers:
       '@opentelemetry/sdk-node':
         specifier: ^0.205.0
         version: 0.205.0(@opentelemetry/api@1.9.0)
-      '@pinecone-database/pinecone':
-        specifier: ^6.1.2
-        version: 6.1.2
       '@sentry/cli':
         specifier: ^2.33.1
         version: 2.33.1(encoding@0.1.13)
@@ -227,8 +225,8 @@ importers:
         specifier: ^7.10.0
         version: 7.10.0
       uuid:
-        specifier: ^10.0.0
-        version: 10.0.0
+        specifier: <=10.0.0
+        version: 9.0.1
       winston:
         specifier: ^3.14.2
         version: 3.14.2
@@ -2625,10 +2623,6 @@ packages:
   '@paulmillr/qr@0.2.1':
     resolution: {integrity: sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ==}
     deprecated: 'The package is now available as "qr": npm install qr'
-
-  '@pinecone-database/pinecone@6.1.2':
-    resolution: {integrity: sha512-ydIlbtgIIHFgBL08sPzua5ckmOgtjgDz8xg21CnP1fqnnEgDmOlnfd10MRKU+fvFRhDlh4Md37SwZDr0d4cBqg==}
-    engines: {node: '>=18.0.0'}
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -6751,14 +6745,6 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
-  uuid@10.0.0:
-    resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
-    hasBin: true
-
-  uuid@8.3.2:
-    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
-    hasBin: true
-
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
@@ -7884,7 +7870,7 @@ snapshots:
       p-limit: 3.1.0
       retry-request: 7.0.2(encoding@0.1.13)
       teeny-request: 9.0.0(encoding@0.1.13)
-      uuid: 8.3.2
+      uuid: 9.0.1
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -8332,7 +8318,7 @@ snapshots:
       readable-stream: 3.6.2
       socket.io-client: 4.8.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       utf-8-validate: 5.0.10
-      uuid: 8.3.2
+      uuid: 9.0.1
     transitivePeerDependencies:
       - supports-color
 
@@ -8361,7 +8347,7 @@ snapshots:
       socket.io-client: 4.8.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       tslib: 2.8.1
       util: 0.12.5
-      uuid: 8.3.2
+      uuid: 9.0.1
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -9801,8 +9787,6 @@ snapshots:
       '@noble/hashes': 1.8.0
 
   '@paulmillr/qr@0.2.1': {}
-
-  '@pinecone-database/pinecone@6.1.2': {}
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
@@ -13297,7 +13281,7 @@ snapshots:
       isomorphic-ws: 4.0.1(ws@7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       json-stringify-safe: 5.0.1
       stream-json: 1.9.1
-      uuid: 8.3.2
+      uuid: 9.0.1
       ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
@@ -14711,7 +14695,7 @@ snapshots:
       '@types/ws': 8.18.1
       buffer: 6.0.3
       eventemitter3: 5.0.1
-      uuid: 8.3.2
+      uuid: 9.0.1
       ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     optionalDependencies:
       bufferutil: 4.0.9
@@ -15300,10 +15284,6 @@ snapshots:
       which-typed-array: 1.1.19
 
   utils-merge@1.0.1: {}
-
-  uuid@10.0.0: {}
-
-  uuid@8.3.2: {}
 
   uuid@9.0.1: {}
 
