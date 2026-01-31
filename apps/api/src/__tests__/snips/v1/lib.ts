@@ -1,3 +1,4 @@
+import { config } from "../../../config";
 import {
   ScrapeRequestInput,
   Document,
@@ -62,7 +63,7 @@ export async function scrape(
 ): Promise<Document> {
   const raw = await scrapeRaw(body, identity);
   expectScrapeToSucceed(raw);
-  if (body.proxy === "stealth") {
+  if (body.proxy === "stealth" || body.proxy === "enhanced") {
     expect(raw.body.data.metadata.proxyUsed).toBe("stealth");
   } else if (!body.proxy || body.proxy === "basic") {
     expect(raw.body.data.metadata.proxyUsed).toBe("basic");
@@ -548,7 +549,7 @@ export async function batchScrapeWithConcurrencyTracking(
 
 export async function zdrcleaner(teamId: string) {
   const res = await request(TEST_API_URL)
-    .get(`/admin/${process.env.BULL_AUTH_KEY}/zdrcleaner`)
+    .get(`/admin/${config.BULL_AUTH_KEY}/zdrcleaner`)
     .query({ teamId });
 
   expect(res.statusCode).toBe(200);

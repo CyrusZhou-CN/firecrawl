@@ -21,6 +21,7 @@ from .types import (
     PDFParser,
     CrawlParamsData,
     WebhookConfig,
+    AgentWebhookConfig,
     CrawlErrorsResponse,
     ActiveCrawlsResponse,
     MapOptions,
@@ -49,6 +50,7 @@ from .methods import map as map_module
 from .methods import batch as batch_methods
 from .methods import usage as usage_methods
 from .methods import extract as extract_module
+from .methods import agent as agent_module
 from .watcher import Watcher
 
 class FirecrawlClient:
@@ -198,7 +200,7 @@ class FirecrawlClient:
             limit: Maximum number of results to return (default: 5)
             tbs: Time-based search filter
             location: Location string for search
-            timeout: Request timeout in milliseconds (default: 60000)
+            timeout: Request timeout in milliseconds (default: 300000)
             page_options: Options for scraping individual pages
             
         Returns:
@@ -227,7 +229,8 @@ class FirecrawlClient:
         exclude_paths: Optional[List[str]] = None,
         include_paths: Optional[List[str]] = None,
         max_discovery_depth: Optional[int] = None,
-        ignore_sitemap: bool = False,
+        sitemap: Optional[Literal["only", "include", "skip"]] = None,
+        ignore_sitemap: Optional[bool] = None,
         ignore_query_parameters: bool = False,
         limit: Optional[int] = None,
         crawl_entire_domain: bool = False,
@@ -252,7 +255,8 @@ class FirecrawlClient:
             exclude_paths: Patterns of URLs to exclude
             include_paths: Patterns of URLs to include
             max_discovery_depth: Maximum depth for finding new URLs
-            ignore_sitemap: Skip sitemap.xml processing
+            sitemap: Sitemap usage mode ("only" | "include" | "skip")
+            ignore_sitemap: Deprecated alias for sitemap ("skip" when true, "include" when false)
             ignore_query_parameters: Ignore URL parameters
             limit: Maximum pages to crawl
             crawl_entire_domain: Follow parent directory links
@@ -275,25 +279,32 @@ class FirecrawlClient:
             Exception: If the crawl fails to start or complete
             TimeoutError: If timeout is reached
         """
-        request = CrawlRequest(
-            url=url,
-            prompt=prompt,
-            exclude_paths=exclude_paths,
-            include_paths=include_paths,
-            max_discovery_depth=max_discovery_depth,
-            ignore_sitemap=ignore_sitemap,
-            ignore_query_parameters=ignore_query_parameters,
-            limit=limit,
-            crawl_entire_domain=crawl_entire_domain,
-            allow_external_links=allow_external_links,
-            allow_subdomains=allow_subdomains,
-            delay=delay,
-            max_concurrency=max_concurrency,
-            webhook=webhook,
-            scrape_options=scrape_options,
-            zero_data_retention=zero_data_retention,
-            integration=integration,
-        )
+        resolved_sitemap = sitemap
+        if resolved_sitemap is None and ignore_sitemap is not None:
+            resolved_sitemap = "skip" if ignore_sitemap else "include"
+
+        request_kwargs = {
+            "url": url,
+            "prompt": prompt,
+            "exclude_paths": exclude_paths,
+            "include_paths": include_paths,
+            "max_discovery_depth": max_discovery_depth,
+            "ignore_query_parameters": ignore_query_parameters,
+            "limit": limit,
+            "crawl_entire_domain": crawl_entire_domain,
+            "allow_external_links": allow_external_links,
+            "allow_subdomains": allow_subdomains,
+            "delay": delay,
+            "max_concurrency": max_concurrency,
+            "webhook": webhook,
+            "scrape_options": scrape_options,
+            "zero_data_retention": zero_data_retention,
+            "integration": integration,
+        }
+        if resolved_sitemap is not None:
+            request_kwargs["sitemap"] = resolved_sitemap
+
+        request = CrawlRequest(**request_kwargs)
         
         return crawl_module.crawl(
             self.http_client,
@@ -311,7 +322,8 @@ class FirecrawlClient:
         exclude_paths: Optional[List[str]] = None,
         include_paths: Optional[List[str]] = None,
         max_discovery_depth: Optional[int] = None,
-        ignore_sitemap: bool = False,
+        sitemap: Optional[Literal["only", "include", "skip"]] = None,
+        ignore_sitemap: Optional[bool] = None,
         ignore_query_parameters: bool = False,
         limit: Optional[int] = None,
         crawl_entire_domain: bool = False,
@@ -333,7 +345,8 @@ class FirecrawlClient:
             exclude_paths: Patterns of URLs to exclude
             include_paths: Patterns of URLs to include
             max_discovery_depth: Maximum depth for finding new URLs
-            ignore_sitemap: Skip sitemap.xml processing
+            sitemap: Sitemap usage mode ("only" | "include" | "skip")
+            ignore_sitemap: Deprecated alias for sitemap ("skip" when true, "include" when false)
             ignore_query_parameters: Ignore URL parameters
             limit: Maximum pages to crawl
             crawl_entire_domain: Follow parent directory links
@@ -352,25 +365,32 @@ class FirecrawlClient:
             ValueError: If request is invalid
             Exception: If the crawl operation fails to start
         """
-        request = CrawlRequest(
-            url=url,
-            prompt=prompt,
-            exclude_paths=exclude_paths,
-            include_paths=include_paths,
-            max_discovery_depth=max_discovery_depth,
-            ignore_sitemap=ignore_sitemap,
-            ignore_query_parameters=ignore_query_parameters,
-            limit=limit,
-            crawl_entire_domain=crawl_entire_domain,
-            allow_external_links=allow_external_links,
-            allow_subdomains=allow_subdomains,
-            delay=delay,
-            max_concurrency=max_concurrency,
-            webhook=webhook,
-            scrape_options=scrape_options,
-            zero_data_retention=zero_data_retention,
-            integration=integration,
-        )
+        resolved_sitemap = sitemap
+        if resolved_sitemap is None and ignore_sitemap is not None:
+            resolved_sitemap = "skip" if ignore_sitemap else "include"
+
+        request_kwargs = {
+            "url": url,
+            "prompt": prompt,
+            "exclude_paths": exclude_paths,
+            "include_paths": include_paths,
+            "max_discovery_depth": max_discovery_depth,
+            "ignore_query_parameters": ignore_query_parameters,
+            "limit": limit,
+            "crawl_entire_domain": crawl_entire_domain,
+            "allow_external_links": allow_external_links,
+            "allow_subdomains": allow_subdomains,
+            "delay": delay,
+            "max_concurrency": max_concurrency,
+            "webhook": webhook,
+            "scrape_options": scrape_options,
+            "zero_data_retention": zero_data_retention,
+            "integration": integration,
+        }
+        if resolved_sitemap is not None:
+            request_kwargs["sitemap"] = resolved_sitemap
+
+        request = CrawlRequest(**request_kwargs)
         
         return crawl_module.start_crawl(self.http_client, request)
     
@@ -401,6 +421,28 @@ class FirecrawlClient:
             self.http_client,
             job_id,
             pagination_config=pagination_config,
+            request_timeout=request_timeout,
+        )
+
+    def get_crawl_status_page(
+        self,
+        next_url: str,
+        *,
+        request_timeout: Optional[float] = None,
+    ) -> CrawlJob:
+        """
+        Fetch a single page of crawl results using a next URL.
+
+        Args:
+            next_url: Opaque next URL from a prior crawl status response
+            request_timeout: Timeout (in seconds) for the HTTP request
+
+        Returns:
+            CrawlJob with the page data and next URL (if any)
+        """
+        return crawl_module.get_crawl_status_page(
+            self.http_client,
+            next_url,
             request_timeout=request_timeout,
         )
     
@@ -440,6 +482,7 @@ class FirecrawlClient:
         *,
         search: Optional[str] = None,
         include_subdomains: Optional[bool] = None,
+        ignore_query_parameters: Optional[bool] = None,
         limit: Optional[int] = None,
         sitemap: Optional[Literal["only", "include", "skip"]] = None,
         timeout: Optional[int] = None,
@@ -452,6 +495,7 @@ class FirecrawlClient:
             url: Root URL to explore
             search: Optional substring filter for discovered links
             include_subdomains: Whether to include subdomains
+            ignore_query_parameters: Whether to ignore query parameters when mapping
             limit: Maximum number of links to return
             sitemap: Sitemap usage mode ("only" | "include" | "skip")
             timeout: Request timeout in milliseconds
@@ -462,12 +506,13 @@ class FirecrawlClient:
         options = MapOptions(
             search=search,
             include_subdomains=include_subdomains,
+            ignore_query_parameters=ignore_query_parameters,
             limit=limit,
             sitemap=sitemap if sitemap is not None else "include",
             timeout=timeout,
             integration=integration,
             location=location
-        ) if any(v is not None for v in [search, include_subdomains, limit, sitemap, timeout, integration, location]) else None
+        ) if any(v is not None for v in [search, include_subdomains, ignore_query_parameters, limit, sitemap, timeout, integration, location]) else None
 
         return map_module.map(self.http_client, url, options)
     
@@ -718,6 +763,27 @@ class FirecrawlClient:
             pagination_config=pagination_config
         )
 
+    def get_batch_scrape_status_page(
+        self,
+        next_url: str,
+        *,
+        request_timeout: Optional[float] = None,
+    ):
+        """Fetch a single page of batch scrape results using a next URL.
+
+        Args:
+            next_url: Opaque next URL from a prior batch scrape status response
+            request_timeout: Timeout (in seconds) for the HTTP request
+
+        Returns:
+            BatchScrapeJob with the page data and next URL (if any)
+        """
+        return batch_module.get_batch_scrape_status_page(
+            self.http_client,
+            next_url,
+            request_timeout=request_timeout,
+        )
+
     def cancel_batch_scrape(self, job_id: str) -> bool:
         """Cancel a running batch scrape job.
 
@@ -750,6 +816,108 @@ class FirecrawlClient:
             Extract response payload with status and optional data
         """
         return extract_module.get_extract_status(self.http_client, job_id)
+
+    def start_agent(
+        self,
+        urls: Optional[List[str]] = None,
+        *,
+        prompt: str,
+        schema: Optional[Any] = None,
+        integration: Optional[str] = None,
+        max_credits: Optional[int] = None,
+        strict_constrain_to_urls: Optional[bool] = None,
+        model: Optional[Literal["spark-1-pro", "spark-1-mini"]] = None,
+        webhook: Optional[Union[str, AgentWebhookConfig]] = None,
+    ):
+        """Start an agent job (non-blocking).
+
+        Args:
+            urls: URLs to process (optional)
+            prompt: Natural-language instruction for the agent
+            schema: Target JSON schema for the output (dict or Pydantic BaseModel)
+            integration: Integration tag/name
+            max_credits: Maximum credits to use (optional)
+            model: Model to use for the agent ("spark-1-pro" or "spark-1-mini")
+            webhook: Webhook URL or configuration for notifications
+        Returns:
+            Response payload with job id/status (poll with get_agent_status)
+        """
+        return agent_module.start_agent(
+            self.http_client,
+            urls,
+            prompt=prompt,
+            schema=schema,
+            integration=integration,
+            max_credits=max_credits,
+            strict_constrain_to_urls=strict_constrain_to_urls,
+            model=model,
+            webhook=webhook,
+        )
+
+    def agent(
+        self,
+        urls: Optional[List[str]] = None,
+        *,
+        prompt: str,
+        schema: Optional[Any] = None,
+        integration: Optional[str] = None,
+        poll_interval: int = 2,
+        timeout: Optional[int] = None,
+        max_credits: Optional[int] = None,
+        strict_constrain_to_urls: Optional[bool] = None,
+        model: Optional[Literal["spark-1-pro", "spark-1-mini"]] = None,
+        webhook: Optional[Union[str, AgentWebhookConfig]] = None,
+    ):
+        """Run an agent and wait until completion.
+
+        Args:
+            urls: URLs to process (optional)
+            prompt: Natural-language instruction for the agent
+            schema: Target JSON schema for the output (dict or Pydantic BaseModel)
+            integration: Integration tag/name
+            poll_interval: Seconds between status checks
+            timeout: Maximum seconds to wait (None for no timeout)
+            max_credits: Maximum credits to use (optional)
+            model: Model to use for the agent ("spark-1-pro" or "spark-1-mini")
+            webhook: Webhook URL or configuration for notifications
+        Returns:
+            Final agent response when completed
+        """
+        return agent_module.agent(
+            self.http_client,
+            urls,
+            prompt=prompt,
+            schema=schema,
+            integration=integration,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            max_credits=max_credits,
+            strict_constrain_to_urls=strict_constrain_to_urls,
+            model=model,
+            webhook=webhook,
+        )
+
+    def get_agent_status(self, job_id: str):
+        """Get the current status (and data if completed) of an agent job.
+
+        Args:
+            job_id: Agent job ID
+
+        Returns:
+            Agent response payload with status and optional data
+        """
+        return agent_module.get_agent_status(self.http_client, job_id)
+
+    def cancel_agent(self, job_id: str) -> bool:
+        """Cancel a running agent job.
+
+        Args:
+            job_id: Agent job ID
+
+        Returns:
+            True if the agent was cancelled
+        """
+        return agent_module.cancel_agent(self.http_client, job_id)
 
     def get_concurrency(self):
         """Get current concurrency and maximum allowed for this team/key (v2)."""

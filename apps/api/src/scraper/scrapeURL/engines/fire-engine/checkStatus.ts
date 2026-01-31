@@ -102,6 +102,7 @@ const successSchema = z.object({
 
   usedMobileProxy: z.boolean().optional(),
   youtubeTranscriptContent: z.any().optional(),
+  timezone: z.string().optional(),
 });
 
 export type FireEngineCheckStatusSuccess = z.infer<typeof successSchema>;
@@ -164,6 +165,14 @@ export async function fireEngineCheckStatus(
   const failedParse = failedSchema.safeParse(status);
 
   if (successParse.success) {
+    // Check if this is an unsupported media type error (e.g., binary file)
+    if (
+      successParse.data.pageStatusCode === 415 &&
+      successParse.data.pageError?.startsWith("Unsupported Media Type:")
+    ) {
+      throw new UnsupportedFileError(successParse.data.pageError);
+    }
+
     logger.debug("Scrape succeeded!", { jobId });
     return successParse.data;
   } else if (processingParse.success) {
