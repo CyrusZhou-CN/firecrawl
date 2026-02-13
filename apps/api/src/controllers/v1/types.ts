@@ -74,7 +74,7 @@ export const url = z.preprocess(
         return false;
       }
     }, "Invalid URL"),
-  // .refine((x) => !isUrlBlocked(x as string), BLOCKLISTED_URL_MESSAGE),
+  // .refine((x) => !isUrlBlocked(x as string), UNSUPPORTED_SITE_MESSAGE),
 );
 
 const agentExtractModelValue = "fire-1";
@@ -1246,6 +1246,7 @@ export type AuthCreditUsageChunk = {
     extractStatus: number;
     extractAgentPreview?: number;
     scrapeAgentPreview?: number;
+    browser?: number;
   };
   concurrency: number;
   flags: TeamFlags;
@@ -1261,12 +1262,10 @@ export type TeamFlags = {
   allowZDR?: boolean;
   zdrCost?: number;
   checkRobotsOnScrape?: boolean;
-  allowTeammateInvites?: boolean;
   crawlTtlHours?: number;
   ipWhitelist?: boolean;
   skipCountryCheck?: boolean;
-  extractV3Beta?: boolean;
-  agentBeta?: boolean;
+  browserBeta?: boolean;
   bypassCreditChecks?: boolean;
   debugBranding?: boolean;
 } | null;

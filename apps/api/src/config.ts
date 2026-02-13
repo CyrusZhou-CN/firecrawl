@@ -9,6 +9,21 @@ const delimitedList = (separator = ",") => {
   });
 };
 
+// Ethereum address schema: validates 0x followed by 40 hex characters
+const ethereumAddress = z
+  .string()
+  .transform(s => s.trim())
+  .pipe(
+    z.union([
+      z.literal(""), // Allow empty string (treated as undefined below)
+      z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format"),
+    ]),
+  )
+  .transform(s => (s === "" ? undefined : (s as `0x${string}`)))
+  .optional();
+
 /* Schema */
 const configSchema = z.object({
   // Application
@@ -73,13 +88,20 @@ const configSchema = z.object({
   FIRE_ENGINE_STAGING_URL: z.string().optional(),
   FIRE_ENGINE_AB_URL: z.string().optional(),
   FIRE_ENGINE_AB_RATE: z.coerce.number().optional(),
-  FIRE_ENGINE_AB_COMPARE_ENABLED: z.stringbool().default(false),
+  FIRE_ENGINE_AB_MODE: z.enum(["mirror", "split"]).default("mirror"),
 
   // ScrapeURL
   SCRAPEURL_AB_HOST: z.string().optional(),
   SCRAPEURL_AB_RATE: z.coerce.number().optional(),
   SCRAPEURL_AB_EXTEND_MAXAGE: z.stringbool().optional(),
   SCRAPEURL_ENGINE_WATERFALL_DELAY_MS: z.coerce.number().default(0),
+
+  // Scrape Retry Limits
+  SCRAPE_MAX_ATTEMPTS: z.coerce.number().int().positive().default(6),
+  SCRAPE_MAX_FEATURE_TOGGLES: z.coerce.number().int().positive().default(3),
+  SCRAPE_MAX_FEATURE_REMOVALS: z.coerce.number().int().positive().default(3),
+  SCRAPE_MAX_PDF_PREFETCHES: z.coerce.number().int().positive().default(2),
+  SCRAPE_MAX_DOCUMENT_PREFETCHES: z.coerce.number().int().positive().default(2),
 
   // Search Services
   SEARXNG_ENDPOINT: z.string().optional(),
@@ -172,7 +194,7 @@ const configSchema = z.object({
   // Payment (x402)
   X402_ENDPOINT_PRICE_USD: z.string().optional(),
   X402_NETWORK: z.string().optional(),
-  X402_PAY_TO_ADDRESS: z.string().optional(),
+  X402_PAY_TO_ADDRESS: ethereumAddress,
 
   // System
   MAX_CPU: z.coerce.number().default(0.8),
@@ -196,6 +218,13 @@ const configSchema = z.object({
 
   EXTRACT_V3_BETA_URL: z.string().optional(),
   AGENT_INTEROP_SECRET: z.string().optional(),
+
+  // Browser / Sandbox
+  SANDBOX_API_URL: z.string().default("http://localhost:3002"),
+  SANDBOX_POD_URL_TEMPLATE: z.string().optional(),
+  SANDBOX_HEADLESS_SERVICE: z.string().optional(),
+  CDP_PROXY_URL: z.string().default("ws://localhost:9222"),
+  LIVE_VIEW_BASE_URL: z.string().optional(),
 
   NUQ_PREFETCH_WORKER_HEARTBEAT_URL: z.string().optional(),
 });

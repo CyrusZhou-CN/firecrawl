@@ -683,3 +683,39 @@ export interface QueueStatusResponse {
   maxConcurrency: number;
   mostRecentSuccess: string | null;
 }
+
+// Browser types
+export interface BrowserCreateResponse {
+  success: boolean;
+  id?: string;
+  cdpUrl?: string;
+  liveViewUrl?: string;
+  error?: string;
+}
+
+export interface BrowserExecuteResponse {
+  success: boolean;
+  result?: string;
+  error?: string;
+}
+
+export interface BrowserDeleteResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface BrowserSession {
+  id: string;
+  status: string;
+  cdpUrl: string;
+  liveViewUrl: string;
+  streamWebView: boolean;
+  createdAt: string;
+  lastActivity: string;
+}
+
+export interface BrowserListResponse {
+  success: boolean;
+  sessions?: BrowserSession[];
+  error?: string;
+}

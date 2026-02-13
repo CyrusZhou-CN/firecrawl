@@ -582,6 +582,7 @@ class CrawlRequest(BaseModel):
     max_concurrency: Optional[int] = None
     webhook: Optional[Union[str, WebhookConfig]] = None
     scrape_options: Optional[ScrapeOptions] = None
+    regex_on_full_url: bool = False
     zero_data_retention: bool = False
     integration: Optional[str] = None
 
@@ -807,6 +808,53 @@ class AgentResponse(BaseModel):
     model: Optional[Literal["spark-1-pro", "spark-1-mini"]] = None
     expires_at: Optional[datetime] = None
     credits_used: Optional[int] = None
+
+
+# Browser types
+class BrowserCreateResponse(BaseModel):
+    """Response from creating a browser session."""
+
+    success: bool
+    id: Optional[str] = None
+    cdp_url: Optional[str] = None
+    live_view_url: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BrowserExecuteResponse(BaseModel):
+    """Response from executing code in a browser session."""
+
+    success: bool
+    result: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BrowserDeleteResponse(BaseModel):
+    """Response from deleting a browser session."""
+
+    success: bool
+    error: Optional[str] = None
+
+
+class BrowserSession(BaseModel):
+    """Information about a browser session."""
+
+    id: str
+    status: str
+    cdp_url: str
+    live_view_url: str
+    stream_web_view: bool
+    created_at: str
+    last_activity: str
+
+
+class BrowserListResponse(BaseModel):
+    """Response from listing browser sessions."""
+
+    success: bool
+    sessions: Optional[List["BrowserSession"]] = None
+    error: Optional[str] = None
+
 
 # Usage/limits types
 class ConcurrencyCheck(BaseModel):

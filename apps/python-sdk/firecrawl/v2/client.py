@@ -51,6 +51,7 @@ from .methods import batch as batch_methods
 from .methods import usage as usage_methods
 from .methods import extract as extract_module
 from .methods import agent as agent_module
+from .methods import browser as browser_module
 from .watcher import Watcher
 
 class FirecrawlClient:
@@ -240,6 +241,7 @@ class FirecrawlClient:
         max_concurrency: Optional[int] = None,
         webhook: Optional[Union[str, WebhookConfig]] = None,
         scrape_options: Optional[ScrapeOptions] = None,
+        regex_on_full_url: bool = False,
         zero_data_retention: bool = False,
         poll_interval: int = 2,
         timeout: Optional[int] = None,
@@ -248,7 +250,7 @@ class FirecrawlClient:
     ) -> CrawlJob:
         """
         Start a crawl job and wait for it to complete.
-        
+
         Args:
             url: Target URL to start crawling from
             prompt: Optional prompt to guide the crawl
@@ -266,6 +268,7 @@ class FirecrawlClient:
             max_concurrency: Maximum number of concurrent scrapes
             webhook: Webhook configuration for notifications
             scrape_options: Page scraping configuration
+            regex_on_full_url: Apply includePaths/excludePaths regex to the full URL (including query parameters) instead of just the pathname
             zero_data_retention: Whether to delete data after 24 hours
             poll_interval: Seconds between status checks
             timeout: Maximum seconds to wait for the entire crawl job to complete (None for no timeout)
@@ -298,6 +301,7 @@ class FirecrawlClient:
             "max_concurrency": max_concurrency,
             "webhook": webhook,
             "scrape_options": scrape_options,
+            "regex_on_full_url": regex_on_full_url,
             "zero_data_retention": zero_data_retention,
             "integration": integration,
         }
@@ -305,7 +309,7 @@ class FirecrawlClient:
             request_kwargs["sitemap"] = resolved_sitemap
 
         request = CrawlRequest(**request_kwargs)
-        
+
         return crawl_module.crawl(
             self.http_client,
             request,
@@ -333,12 +337,13 @@ class FirecrawlClient:
         max_concurrency: Optional[int] = None,
         webhook: Optional[Union[str, WebhookConfig]] = None,
         scrape_options: Optional[ScrapeOptions] = None,
+        regex_on_full_url: bool = False,
         zero_data_retention: bool = False,
         integration: Optional[str] = None,
     ) -> CrawlResponse:
         """
         Start an asynchronous crawl job.
-        
+
         Args:
             url: Target URL to start crawling from
             prompt: Optional prompt to guide the crawl
@@ -356,6 +361,7 @@ class FirecrawlClient:
             max_concurrency: Maximum number of concurrent scrapes
             webhook: Webhook configuration for notifications
             scrape_options: Page scraping configuration
+            regex_on_full_url: Apply includePaths/excludePaths regex to the full URL (including query parameters) instead of just the pathname
             zero_data_retention: Whether to delete data after 24 hours
             
         Returns:
@@ -384,6 +390,7 @@ class FirecrawlClient:
             "max_concurrency": max_concurrency,
             "webhook": webhook,
             "scrape_options": scrape_options,
+            "regex_on_full_url": regex_on_full_url,
             "zero_data_retention": zero_data_retention,
             "integration": integration,
         }
@@ -391,7 +398,7 @@ class FirecrawlClient:
             request_kwargs["sitemap"] = resolved_sitemap
 
         request = CrawlRequest(**request_kwargs)
-        
+
         return crawl_module.start_crawl(self.http_client, request)
     
     def get_crawl_status(
@@ -942,6 +949,84 @@ class FirecrawlClient:
     def get_queue_status(self):
         """Get metrics about the team's scrape queue."""
         return usage_methods.get_queue_status(self.http_client)
+
+    # Browser
+    def browser(
+        self,
+        *,
+        ttl_total: Optional[int] = None,
+        ttl_without_activity: Optional[int] = None,
+        stream_web_view: Optional[bool] = None,
+    ):
+        """Create a new browser session.
+
+        Args:
+            ttl_total: Total time-to-live in seconds (30-3600, default 300)
+            ttl_without_activity: TTL without activity in seconds (10-3600)
+            stream_web_view: Whether to enable webview streaming
+
+        Returns:
+            BrowserCreateResponse with session id and CDP URL
+        """
+        return browser_module.browser(
+            self.http_client,
+            ttl_total=ttl_total,
+            ttl_without_activity=ttl_without_activity,
+            stream_web_view=stream_web_view,
+        )
+
+    def browser_execute(
+        self,
+        session_id: str,
+        code: str,
+        *,
+        language: Literal["python", "js"] = "python",
+    ):
+        """Execute code in a browser session.
+
+        Args:
+            session_id: Browser session ID
+            code: Code to execute
+            language: Programming language ("python" or "js")
+
+        Returns:
+            BrowserExecuteResponse with execution result
+        """
+        return browser_module.browser_execute(
+            self.http_client,
+            session_id,
+            code,
+            language=language,
+        )
+
+    def delete_browser(self, session_id: str):
+        """Delete a browser session.
+
+        Args:
+            session_id: Browser session ID
+
+        Returns:
+            BrowserDeleteResponse
+        """
+        return browser_module.delete_browser(self.http_client, session_id)
+
+    def list_browsers(
+        self,
+        *,
+        status: Optional[Literal["active", "destroyed"]] = None,
+    ):
+        """List browser sessions.
+
+        Args:
+            status: Filter by session status ("active" or "destroyed")
+
+        Returns:
+            BrowserListResponse with list of sessions
+        """
+        return browser_module.list_browsers(
+            self.http_client,
+            status=status,
+        )
 
     def watcher(
         self,
