@@ -255,6 +255,8 @@ export class FirecrawlClient {
    * Start an extract job (async).
    * @param args Extraction request (urls, schema or prompt, flags).
    * @returns Job id or processing state.
+   * @deprecated The extract endpoint is in maintenance mode and its use is discouraged.
+   * Review https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor to find a replacement.
    */
   async startExtract(args: Parameters<typeof startExtract>[1]): Promise<ExtractResponse> {
     return startExtract(this.http, args);
@@ -262,6 +264,8 @@ export class FirecrawlClient {
   /**
    * Get extract job status/data.
    * @param jobId Extract job id.
+   * @deprecated The extract endpoint is in maintenance mode and its use is discouraged.
+   * Review https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor to find a replacement.
    */
   async getExtractStatus(jobId: string): Promise<ExtractResponse> {
     return getExtractStatus(this.http, jobId);
@@ -270,6 +274,8 @@ export class FirecrawlClient {
    * Convenience waiter: start an extract and poll until it finishes.
    * @param args Extraction request plus waiter controls (pollInterval, timeout seconds).
    * @returns Final extract response.
+   * @deprecated The extract endpoint is in maintenance mode and its use is discouraged.
+   * Review https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor to find a replacement.
    */
   async extract(args: Parameters<typeof startExtract>[1] & { pollInterval?: number; timeout?: number }): Promise<ExtractResponse> {
     return extractWaiter(this.http, args);
@@ -311,8 +317,8 @@ export class FirecrawlClient {
   // Browser
   /**
    * Create a new browser session.
-   * @param args Session options (ttlTotal, ttlWithoutActivity, streamWebView).
-   * @returns Session id and CDP URL.
+   * @param args Session options (ttl, activityTtl, streamWebView, profile).
+   * @returns Session id, CDP URL, live view URL, and expiration time.
    */
   async browser(
     args: Parameters<typeof browserMethod>[1] = {}
@@ -322,8 +328,8 @@ export class FirecrawlClient {
   /**
    * Execute code in a browser session.
    * @param sessionId Browser session id.
-   * @param args Code and language to execute.
-   * @returns Execution result.
+   * @param args Code, language ("python" | "node" | "bash"), and optional timeout.
+   * @returns Execution result including stdout, stderr, exitCode, and killed status.
    */
   async browserExecute(
     sessionId: string,

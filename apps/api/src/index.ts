@@ -26,6 +26,7 @@ import {
   ResponseWithSentry,
 } from "./controllers/v1/types";
 import { ZodError } from "zod";
+import { QueueFullError } from "./lib/concurrency-limit";
 import { v7 as uuidv7 } from "uuid";
 import { attachWsProxy } from "./services/agentLivecastWS";
 import { cacheableLookup } from "./scraper/scrapeURL/lib/cacheableLookup";
@@ -36,6 +37,7 @@ import { initializeBlocklist } from "./scraper/WebScraper/utils/blocklist";
 import { initializeEngineForcing } from "./scraper/WebScraper/utils/engine-forcing";
 import responseTime from "response-time";
 import { shutdownWebhookQueue } from "./services/webhook";
+import { shutdownIndexerQueue } from "./services/indexing/indexer-queue";
 
 const { createBullBoard } = require("@bull-board/api");
 const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
@@ -138,8 +140,10 @@ async function startServer(port = DEFAULT_PORT) {
       logger.info("Server closed.");
       nuqShutdown().finally(() => {
         shutdownWebhookQueue().finally(() => {
-          logger.info("NUQ shutdown complete");
-          process.exit(0);
+          shutdownIndexerQueue().finally(() => {
+            logger.info("NUQ shutdown complete");
+            process.exit(0);
+          });
         });
       });
     });
@@ -170,7 +174,12 @@ app.use(
     res: Response<ErrorResponse>,
     next: NextFunction,
   ) => {
-    if (err instanceof ZodError) {
+    if (err instanceof QueueFullError) {
+      res.status(429).json({
+        success: false,
+        error: err.message,
+      });
+    } else if (err instanceof ZodError) {
       // In zod v4, ZodError uses 'issues' instead of 'errors'
       const issues = err.issues;
 

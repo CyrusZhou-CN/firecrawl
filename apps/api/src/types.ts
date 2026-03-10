@@ -142,6 +142,7 @@ export enum RateLimiterMode {
   ExtractStatus = "extractStatus",
   ExtractAgentPreview = "extractAgentPreview",
   Browser = "browser",
+  BrowserExecute = "browserExecute",
 }
 
 export type AuthResponse =
@@ -165,4 +166,5 @@ export enum NotificationType {
   AUTO_RECHARGE_FAILED = "autoRechargeFailed",
   CONCURRENCY_LIMIT_REACHED = "concurrencyLimitReached",
   AUTO_RECHARGE_FREQUENT = "autoRechargeFrequent",
+  AGENT_SPONSOR_CONFIRM = "agentSponsorConfirm",
 }

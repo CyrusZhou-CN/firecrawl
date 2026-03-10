@@ -453,6 +453,7 @@ const baseScrapeOptions = z.strictObject({
     .transform(tags => tags.map(transformIframeSelector))
     .optional(),
   onlyMainContent: z.boolean().prefault(true),
+  onlyCleanContent: z.boolean().prefault(false),
   timeout: z.int().positive().min(1000).optional(),
   waitFor: z.int().nonnegative().finite().max(60000).prefault(0),
   // Deprecate this to jsonOptions
@@ -1179,6 +1180,16 @@ export type CrawlStatusResponse =
       expiresAt: string;
       next?: string;
       data: Document[];
+    }
+  | {
+      success: false;
+      status: "failed";
+      error: string;
+      completed: number;
+      total: number;
+      creditsUsed: number;
+      expiresAt: string;
+      data: Document[];
     };
 
 export type OngoingCrawlsResponse =
@@ -1247,12 +1258,20 @@ export type AuthCreditUsageChunk = {
     extractAgentPreview?: number;
     scrapeAgentPreview?: number;
     browser?: number;
+    browserExecute?: number;
   };
   concurrency: number;
   flags: TeamFlags;
 
   // appended on JS-side
   is_extract?: boolean;
+
+  // Agent signup: populated when the key is agent-provisioned
+  _agentSponsor?: {
+    status: "pending" | "verified" | "blocked";
+    verification_deadline: string;
+    email: string;
+  } | null;
 };
 
 export type TeamFlags = {

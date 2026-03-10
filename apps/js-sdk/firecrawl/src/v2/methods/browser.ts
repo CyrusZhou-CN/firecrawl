@@ -10,15 +10,24 @@ import { normalizeAxiosError, throwForBadResponse } from "../utils/errorHandler"
 export async function browser(
   http: HttpClient,
   args: {
-    ttlTotal?: number;
-    ttlWithoutActivity?: number;
+    ttl?: number;
+    activityTtl?: number;
     streamWebView?: boolean;
+    profile?: {
+      name: string;
+      saveChanges?: boolean;
+    };
+    integration?: string;
+    origin?: string;
   } = {}
 ): Promise<BrowserCreateResponse> {
   const body: Record<string, unknown> = {};
-  if (args.ttlTotal != null) body.ttlTotal = args.ttlTotal;
-  if (args.ttlWithoutActivity != null) body.ttlWithoutActivity = args.ttlWithoutActivity;
+  if (args.ttl != null) body.ttl = args.ttl;
+  if (args.activityTtl != null) body.activityTtl = args.activityTtl;
   if (args.streamWebView != null) body.streamWebView = args.streamWebView;
+  if (args.profile != null) body.profile = args.profile;
+  if (args.integration != null) body.integration = args.integration;
+  if (args.origin) body.origin = args.origin;
 
   try {
     const res = await http.post<BrowserCreateResponse>("/v2/browser", body);
@@ -35,13 +44,15 @@ export async function browserExecute(
   sessionId: string,
   args: {
     code: string;
-    language?: "python" | "js";
+    language?: "python" | "node" | "bash";
+    timeout?: number;
   }
 ): Promise<BrowserExecuteResponse> {
   const body: Record<string, unknown> = {
     code: args.code,
-    language: args.language ?? "python",
+    language: args.language ?? "bash",
   };
+  if (args.timeout != null) body.timeout = args.timeout;
 
   try {
     const res = await http.post<BrowserExecuteResponse>(

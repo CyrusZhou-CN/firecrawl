@@ -9,5 +9,11 @@
   "license": "ISC",
   "devDependencies": {
     "artillery": "^2.0.29"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-xml-parser": "^5.3.8",
+      "minimatch@<10.2.3": ">=10.2.3"
+    }
   }
 }

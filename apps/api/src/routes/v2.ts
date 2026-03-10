@@ -48,7 +48,13 @@ import {
   browserExecuteController,
   browserDeleteController,
   browserListController,
+  browserWebhookDestroyedController,
 } from "../controllers/v2/browser";
+import { agentSignupController } from "../controllers/v2/agent-signup";
+import {
+  agentSignupConfirmController,
+  agentSignupBlockController,
+} from "../controllers/v2/agent-signup-confirm";
 
 expressWs(express());
 
@@ -375,27 +381,37 @@ v2Router.post(
   "/browser",
   authMiddleware(RateLimiterMode.Browser),
   countryCheck,
-  checkCreditsMiddleware(15),
+  checkCreditsMiddleware(2),
   wrap(browserCreateController),
 );
 
 v2Router.get(
   "/browser",
-  authMiddleware(RateLimiterMode.Browser),
+  authMiddleware(RateLimiterMode.BrowserExecute),
   wrap(browserListController),
 );
 
 v2Router.post(
   "/browser/:sessionId/execute",
-  authMiddleware(RateLimiterMode.Browser),
+  authMiddleware(RateLimiterMode.BrowserExecute),
   wrap(browserExecuteController),
 );
 
 v2Router.delete(
   "/browser/:sessionId",
-  authMiddleware(RateLimiterMode.Browser),
+  authMiddleware(RateLimiterMode.BrowserExecute),
   wrap(browserDeleteController),
 );
+
+v2Router.post(
+  "/browser/webhook/destroyed",
+  wrap(browserWebhookDestroyedController),
+);
+
+// Agent signup routes (public, no auth required — rate limiting is handled inside the controller)
+v2Router.post("/agent-signup", wrap(agentSignupController));
+v2Router.post("/agent-signup/confirm", wrap(agentSignupConfirmController));
+v2Router.post("/agent-signup/block", wrap(agentSignupBlockController));
 
 // Only register x402 routes if X402_PAY_TO_ADDRESS is configured
 if (isX402Enabled()) {

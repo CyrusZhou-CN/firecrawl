@@ -100,7 +100,13 @@ class FirecrawlClient:
             backoff_factor=backoff_factor
         )
 
-        self.http_client = HttpClient(api_key, api_url)
+        self.http_client = HttpClient(
+            api_key,
+            api_url,
+            timeout=timeout,
+            max_retries=max_retries,
+            backoff_factor=backoff_factor,
+        )
     
     def scrape(
         self,
@@ -136,7 +142,7 @@ class FirecrawlClient:
             include_tags: List of tags to include
             exclude_tags: List of tags to exclude
             only_main_content: Whether to only scrape the main content
-            timeout: Timeout in seconds
+            timeout: Timeout in milliseconds
             wait_for: Wait for a specific element to be present
             mobile: Whether to use mobile mode
             parsers: List of parsers to use
@@ -242,6 +248,7 @@ class FirecrawlClient:
         webhook: Optional[Union[str, WebhookConfig]] = None,
         scrape_options: Optional[ScrapeOptions] = None,
         regex_on_full_url: bool = False,
+        deduplicate_similar_urls: bool = True,
         zero_data_retention: bool = False,
         poll_interval: int = 2,
         timeout: Optional[int] = None,
@@ -269,6 +276,7 @@ class FirecrawlClient:
             webhook: Webhook configuration for notifications
             scrape_options: Page scraping configuration
             regex_on_full_url: Apply includePaths/excludePaths regex to the full URL (including query parameters) instead of just the pathname
+            deduplicate_similar_urls: Whether to deduplicate similar URLs during crawl (default: True)
             zero_data_retention: Whether to delete data after 24 hours
             poll_interval: Seconds between status checks
             timeout: Maximum seconds to wait for the entire crawl job to complete (None for no timeout)
@@ -302,6 +310,7 @@ class FirecrawlClient:
             "webhook": webhook,
             "scrape_options": scrape_options,
             "regex_on_full_url": regex_on_full_url,
+            "deduplicate_similar_urls": deduplicate_similar_urls,
             "zero_data_retention": zero_data_retention,
             "integration": integration,
         }
@@ -338,6 +347,7 @@ class FirecrawlClient:
         webhook: Optional[Union[str, WebhookConfig]] = None,
         scrape_options: Optional[ScrapeOptions] = None,
         regex_on_full_url: bool = False,
+        deduplicate_similar_urls: bool = True,
         zero_data_retention: bool = False,
         integration: Optional[str] = None,
     ) -> CrawlResponse:
@@ -362,6 +372,7 @@ class FirecrawlClient:
             webhook: Webhook configuration for notifications
             scrape_options: Page scraping configuration
             regex_on_full_url: Apply includePaths/excludePaths regex to the full URL (including query parameters) instead of just the pathname
+            deduplicate_similar_urls: Whether to deduplicate similar URLs during crawl (default: True)
             zero_data_retention: Whether to delete data after 24 hours
             
         Returns:
@@ -391,6 +402,7 @@ class FirecrawlClient:
             "webhook": webhook,
             "scrape_options": scrape_options,
             "regex_on_full_url": regex_on_full_url,
+            "deduplicate_similar_urls": deduplicate_similar_urls,
             "zero_data_retention": zero_data_retention,
             "integration": integration,
         }
@@ -565,6 +577,11 @@ class FirecrawlClient:
     ):
         """Start an extract job (non-blocking).
 
+        .. deprecated::
+            The extract endpoint is in maintenance mode and its use is discouraged.
+            Review https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor
+            to find a replacement.
+
         Args:
             urls: URLs to extract from (optional)
             prompt: Natural-language instruction for extraction
@@ -613,6 +630,11 @@ class FirecrawlClient:
         agent: Optional[AgentOptions] = None,
     ):
         """Extract structured data and wait until completion.
+
+        .. deprecated::
+            The extract endpoint is in maintenance mode and its use is discouraged.
+            Review https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor
+            to find a replacement.
 
         Args:
             urls: URLs to extract from (optional)
@@ -816,6 +838,11 @@ class FirecrawlClient:
     def get_extract_status(self, job_id: str):
         """Get the current status (and data if completed) of an extract job.
 
+        .. deprecated::
+            The extract endpoint is in maintenance mode and its use is discouraged.
+            Review https://docs.firecrawl.dev/developer-guides/usage-guides/choosing-the-data-extractor
+            to find a replacement.
+
         Args:
             job_id: Extract job ID
 
@@ -954,25 +981,29 @@ class FirecrawlClient:
     def browser(
         self,
         *,
-        ttl_total: Optional[int] = None,
-        ttl_without_activity: Optional[int] = None,
+        ttl: Optional[int] = None,
+        activity_ttl: Optional[int] = None,
         stream_web_view: Optional[bool] = None,
+        profile: Optional[Dict[str, Any]] = None,
     ):
         """Create a new browser session.
 
         Args:
-            ttl_total: Total time-to-live in seconds (30-3600, default 300)
-            ttl_without_activity: TTL without activity in seconds (10-3600)
+            ttl: Total time-to-live in seconds (30-3600, default 300)
+            activity_ttl: Inactivity TTL in seconds (10-3600)
             stream_web_view: Whether to enable webview streaming
+            profile: Profile config with ``name`` (str) and
+                optional ``save_changes`` (bool, default ``True``)
 
         Returns:
             BrowserCreateResponse with session id and CDP URL
         """
         return browser_module.browser(
             self.http_client,
-            ttl_total=ttl_total,
-            ttl_without_activity=ttl_without_activity,
+            ttl=ttl,
+            activity_ttl=activity_ttl,
             stream_web_view=stream_web_view,
+            profile=profile,
         )
 
     def browser_execute(
@@ -980,14 +1011,16 @@ class FirecrawlClient:
         session_id: str,
         code: str,
         *,
-        language: Literal["python", "js"] = "python",
+        language: Literal["python", "node", "bash"] = "bash",
+        timeout: Optional[int] = None,
     ):
         """Execute code in a browser session.
 
         Args:
             session_id: Browser session ID
             code: Code to execute
-            language: Programming language ("python" or "js")
+            language: Programming language ("python", "node", or "bash")
+            timeout: Execution timeout in seconds (1-300, default 30)
 
         Returns:
             BrowserExecuteResponse with execution result
@@ -997,6 +1030,7 @@ class FirecrawlClient:
             session_id,
             code,
             language=language,
+            timeout=timeout,
         )
 
     def delete_browser(self, session_id: str):

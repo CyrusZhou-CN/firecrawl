@@ -26,6 +26,7 @@ import {
   lockURLsIndividually,
   normalizeURL,
   saveCrawl,
+  setCrawlError,
   StoredCrawl,
 } from "../../lib/crawl-redis";
 import { redisEvictConnection } from "../redis";
@@ -538,7 +539,7 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
 
       doc.metadata.creditsUsed = credits_billed ?? undefined;
 
-      await logScrape(
+      const logScrapePromise = logScrape(
         {
           id: job.id,
           request_id: job.data.requestId ?? job.data.crawl_id ?? job.id,
@@ -556,6 +557,16 @@ async function processJob(job: NuQJob<ScrapeJobSingleUrls>) {
         },
         false,
       );
+
+      if (job.data.skipNuq) {
+        // doesn't use GCS for result retrieval, safe to not await
+        logScrapePromise.catch(err =>
+          logger.warn("Background scrape log failed", { error: err }),
+        );
+      } else {
+        // v0 - must await because waitForJob reads from GCS
+        await logScrapePromise;
+      }
     }
 
     logger.info(`🐂 Job done ${job.id}`);
@@ -962,7 +973,12 @@ async function processKickoffJob(job: NuQJob<ScrapeJobKickoff>) {
   } catch (error) {
     logger.error("An error occurred!", { error });
     await finishCrawlKickoff(job.data.crawl_id);
-    const sc = (await getCrawl(job.data.crawl_id)) as StoredCrawl;
+    await setCrawlError(
+      job.data.crawl_id,
+      error instanceof Error
+        ? error.message
+        : "An unexpected error occurred during crawl setup",
+    );
     return { success: false, error };
   }
 }

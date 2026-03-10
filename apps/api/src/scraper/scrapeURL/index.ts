@@ -36,6 +36,7 @@ import {
   UnsupportedFileError,
   SSLError,
   PDFInsufficientTimeError,
+  PDFOCRRequiredError,
   IndexMissError,
   NoCachedDataError,
   DNSResolutionError,
@@ -48,6 +49,7 @@ import {
   EngineUnsuccessfulError,
   ProxySelectionError,
   ScrapeRetryLimitError,
+  BrandingNotSupportedError,
 } from "./error";
 import { ScrapeRetryTracker } from "./retryTracker";
 import { executeTransformers } from "./transformers";
@@ -646,6 +648,7 @@ async function scrapeURLLoop(meta: Meta): Promise<ScrapeUrlResponse> {
               error.error instanceof ActionError ||
               error.error instanceof UnsupportedFileError ||
               error.error instanceof PDFAntibotError ||
+              error.error instanceof PDFOCRRequiredError ||
               error.error instanceof DocumentAntibotError ||
               error.error instanceof PDFInsufficientTimeError ||
               error.error instanceof ProxySelectionError ||
@@ -1197,6 +1200,14 @@ export async function scrapeURL(
         meta.logger.warn("scrapeURL: Insufficient time to process PDF", {
           error,
         });
+      } else if (error instanceof PDFOCRRequiredError) {
+        errorType = "PDFOCRRequiredError";
+        meta.logger.warn(
+          "scrapeURL: PDF requires OCR but fast mode was requested",
+          {
+            error,
+          },
+        );
       } else if (error instanceof PDFPrefetchFailed) {
         errorType = "PDFPrefetchFailed";
         meta.logger.warn(
@@ -1209,6 +1220,11 @@ export async function scrapeURL(
           "scrapeURL: Failed to prefetch document that is protected by anti-bot",
           { error },
         );
+      } else if (error instanceof BrandingNotSupportedError) {
+        errorType = "BrandingNotSupportedError";
+        meta.logger.warn("scrapeURL: Branding not supported for this content", {
+          error,
+        });
       } else if (error instanceof ProxySelectionError) {
         errorType = "ProxySelectionError";
         meta.logger.warn("scrapeURL: Proxy selection error", { error });

@@ -4,7 +4,7 @@ Async browser session methods for Firecrawl v2 API.
 Provides async create, execute, delete, and list operations for browser sessions.
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 from ...types import (
     BrowserCreateResponse,
@@ -21,6 +21,10 @@ def _normalize_browser_create_response(payload: Dict[str, Any]) -> Dict[str, Any
         out["cdp_url"] = out["cdpUrl"]
     if "liveViewUrl" in out and "live_view_url" not in out:
         out["live_view_url"] = out["liveViewUrl"]
+    if "interactiveLiveViewUrl" in out and "interactive_live_view_url" not in out:
+        out["interactive_live_view_url"] = out["interactiveLiveViewUrl"]
+    if "expiresAt" in out and "expires_at" not in out:
+        out["expires_at"] = out["expiresAt"]
     return out
 
 
@@ -34,6 +38,8 @@ def _normalize_browser_list_response(payload: Dict[str, Any]) -> Dict[str, Any]:
                 ns["cdp_url"] = ns["cdpUrl"]
             if "liveViewUrl" in ns and "live_view_url" not in ns:
                 ns["live_view_url"] = ns["liveViewUrl"]
+            if "interactiveLiveViewUrl" in ns and "interactive_live_view_url" not in ns:
+                ns["interactive_live_view_url"] = ns["interactiveLiveViewUrl"]
             if "streamWebView" in ns and "stream_web_view" not in ns:
                 ns["stream_web_view"] = ns["streamWebView"]
             if "createdAt" in ns and "created_at" not in ns:
@@ -48,32 +54,56 @@ def _normalize_browser_list_response(payload: Dict[str, Any]) -> Dict[str, Any]:
 async def browser(
     client: AsyncHttpClient,
     *,
-    ttl_total: Optional[int] = None,
-    ttl_without_activity: Optional[int] = None,
+    ttl: Optional[int] = None,
+    activity_ttl: Optional[int] = None,
     stream_web_view: Optional[bool] = None,
+    profile: Optional[Dict[str, Any]] = None,
 ) -> BrowserCreateResponse:
     """Create a new browser session.
 
     Args:
         client: Async HTTP client instance
-        ttl_total: Total time-to-live in seconds (30-3600, default 300)
-        ttl_without_activity: TTL without activity in seconds (10-3600)
+        ttl: Total time-to-live in seconds (30-3600, default 300)
+        activity_ttl: Inactivity TTL in seconds (10-3600)
         stream_web_view: Whether to enable webview streaming
+        profile: Profile config with ``name`` (str) and
+            optional ``save_changes`` (bool, default ``True``)
 
     Returns:
         BrowserCreateResponse with session id and CDP URL
     """
     body: Dict[str, Any] = {}
-    if ttl_total is not None:
-        body["ttlTotal"] = ttl_total
-    if ttl_without_activity is not None:
-        body["ttlWithoutActivity"] = ttl_without_activity
+    if ttl is not None:
+        body["ttl"] = ttl
+    if activity_ttl is not None:
+        body["activityTtl"] = activity_ttl
     if stream_web_view is not None:
         body["streamWebView"] = stream_web_view
+    if profile is not None:
+        body["profile"] = {
+            "name": profile["name"],
+            "saveChanges": profile.get("save_changes", True),
+        }
 
     resp = await client.post("/v2/browser", body)
     payload = _normalize_browser_create_response(resp.json())
     return BrowserCreateResponse(**payload)
+
+
+def _normalize_browser_execute_response(payload: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(payload)
+    if "exitCode" in out and "exit_code" not in out:
+        out["exit_code"] = out["exitCode"]
+    return out
+
+
+def _normalize_browser_delete_response(payload: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(payload)
+    if "sessionDurationMs" in out and "session_duration_ms" not in out:
+        out["session_duration_ms"] = out["sessionDurationMs"]
+    if "creditsBilled" in out and "credits_billed" not in out:
+        out["credits_billed"] = out["creditsBilled"]
+    return out
 
 
 async def browser_execute(
@@ -81,7 +111,8 @@ async def browser_execute(
     session_id: str,
     code: str,
     *,
-    language: Literal["python", "js"] = "python",
+    language: Literal["python", "node", "bash"] = "bash",
+    timeout: Optional[int] = None,
 ) -> BrowserExecuteResponse:
     """Execute code in a browser session.
 
@@ -89,7 +120,8 @@ async def browser_execute(
         client: Async HTTP client instance
         session_id: Browser session ID
         code: Code to execute
-        language: Programming language ("python" or "js")
+        language: Programming language ("python", "node", or "bash")
+        timeout: Execution timeout in seconds (1-300, default 30)
 
     Returns:
         BrowserExecuteResponse with execution result
@@ -98,9 +130,12 @@ async def browser_execute(
         "code": code,
         "language": language,
     }
+    if timeout is not None:
+        body["timeout"] = timeout
 
     resp = await client.post(f"/v2/browser/{session_id}/execute", body)
-    return BrowserExecuteResponse(**resp.json())
+    payload = _normalize_browser_execute_response(resp.json())
+    return BrowserExecuteResponse(**payload)
 
 
 async def delete_browser(
@@ -117,7 +152,8 @@ async def delete_browser(
         BrowserDeleteResponse
     """
     resp = await client.delete(f"/v2/browser/{session_id}")
-    return BrowserDeleteResponse(**resp.json())
+    payload = _normalize_browser_delete_response(resp.json())
+    return BrowserDeleteResponse(**payload)
 
 
 async def list_browsers(

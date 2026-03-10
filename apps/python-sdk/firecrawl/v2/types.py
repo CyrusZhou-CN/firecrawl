@@ -574,6 +574,7 @@ class CrawlRequest(BaseModel):
     max_discovery_depth: Optional[int] = None
     sitemap: Literal["skip", "include", "only"] = "include"
     ignore_query_parameters: bool = False
+    deduplicate_similar_urls: bool = True
     limit: Optional[int] = None
     crawl_entire_domain: bool = False
     allow_external_links: bool = False
@@ -667,6 +668,7 @@ class CrawlParamsData(BaseModel):
     max_discovery_depth: Optional[int] = None
     sitemap: Optional[Literal["skip", "include", "only"]] = None
     ignore_query_parameters: bool = False
+    deduplicate_similar_urls: bool = True
     limit: Optional[int] = None
     crawl_entire_domain: bool = False
     allow_external_links: bool = False
@@ -818,6 +820,8 @@ class BrowserCreateResponse(BaseModel):
     id: Optional[str] = None
     cdp_url: Optional[str] = None
     live_view_url: Optional[str] = None
+    interactive_live_view_url: Optional[str] = None
+    expires_at: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -825,7 +829,11 @@ class BrowserExecuteResponse(BaseModel):
     """Response from executing code in a browser session."""
 
     success: bool
+    stdout: Optional[str] = None
     result: Optional[str] = None
+    stderr: Optional[str] = None
+    exit_code: Optional[int] = None
+    killed: Optional[bool] = None
     error: Optional[str] = None
 
 
@@ -833,6 +841,8 @@ class BrowserDeleteResponse(BaseModel):
     """Response from deleting a browser session."""
 
     success: bool
+    session_duration_ms: Optional[int] = None
+    credits_billed: Optional[int] = None
     error: Optional[str] = None
 
 
@@ -843,6 +853,7 @@ class BrowserSession(BaseModel):
     status: str
     cdp_url: str
     live_view_url: str
+    interactive_live_view_url: Optional[str] = None
     stream_web_view: bool
     created_at: str
     last_activity: str
@@ -1006,9 +1017,10 @@ class PDFAction(BaseModel):
 
 
 class PDFParser(BaseModel):
-    """PDF parser configuration with optional page limit."""
+    """PDF parser configuration with optional page limit and processing mode."""
 
     type: Literal["pdf"] = "pdf"
+    mode: Optional[Literal["fast", "auto", "ocr"]] = None
     max_pages: Optional[int] = None
 
 

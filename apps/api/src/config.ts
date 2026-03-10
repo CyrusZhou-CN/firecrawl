@@ -70,8 +70,6 @@ const configSchema = z.object({
   SUPABASE_ANON_TOKEN: z.string().optional(),
   SUPABASE_SERVICE_TOKEN: z.string().optional(),
   SUPABASE_REPLICA_URL: z.string().optional(),
-  SUPABASE_ACUC_URL: z.string().optional(),
-  SUPABASE_ACUC_SERVICE_TOKEN: z.string().optional(),
   INDEX_SUPABASE_URL: z.string().optional(),
   INDEX_SUPABASE_SERVICE_TOKEN: z.string().optional(),
   SEARCH_INDEX_SUPABASE_URL: z.string().optional(),
@@ -89,6 +87,10 @@ const configSchema = z.object({
   FIRE_ENGINE_AB_URL: z.string().optional(),
   FIRE_ENGINE_AB_RATE: z.coerce.number().optional(),
   FIRE_ENGINE_AB_MODE: z.enum(["mirror", "split"]).default("mirror"),
+
+  // Indexer
+  INDEXER_RABBITMQ_URL: z.string().optional(),
+  INDEXER_TRAFFIC_SHARE: z.coerce.number().default(0.0),
 
   // ScrapeURL
   SCRAPEURL_AB_HOST: z.string().optional(),
@@ -117,6 +119,7 @@ const configSchema = z.object({
   NUQ_WORKER_START_PORT: z.coerce.number().default(3006),
   NUQ_WORKER_COUNT: z.coerce.number().default(5),
   NUQ_PREFETCH_WORKER_PORT: z.coerce.number().default(3011).catch(3011), // todo: investigate why .catch is needed
+  NUQ_RECONCILER_WORKER_PORT: z.coerce.number().default(3012).catch(3012),
   EXTRACT_WORKER_PORT: z.coerce.number().default(3004),
   NUQ_WAIT_MODE: z.string().optional(),
 
@@ -150,6 +153,10 @@ const configSchema = z.object({
   // RunPod
   RUNPOD_MU_API_KEY: z.string().optional(),
   RUNPOD_MU_POD_ID: z.string().optional(),
+
+  // PDF Rust Extraction (pdf-inspector)
+  PDF_RUST_EXTRACT_ENABLE: z.stringbool().optional(),
+  PDF_SHADOW_COMPARISON_ENABLE: z.stringbool().optional(),
 
   // Webhooks
   SELF_HOSTED_WEBHOOK_URL: z.string().optional(),
@@ -195,6 +202,7 @@ const configSchema = z.object({
   X402_ENDPOINT_PRICE_USD: z.string().optional(),
   X402_NETWORK: z.string().optional(),
   X402_PAY_TO_ADDRESS: ethereumAddress,
+  X402_FACILITATOR_URL: z.string().url().optional(),
 
   // System
   MAX_CPU: z.coerce.number().default(0.8),
@@ -219,12 +227,10 @@ const configSchema = z.object({
   EXTRACT_V3_BETA_URL: z.string().optional(),
   AGENT_INTEROP_SECRET: z.string().optional(),
 
-  // Browser / Sandbox
-  SANDBOX_API_URL: z.string().default("http://localhost:3002"),
-  SANDBOX_POD_URL_TEMPLATE: z.string().optional(),
-  SANDBOX_HEADLESS_SERVICE: z.string().optional(),
-  CDP_PROXY_URL: z.string().default("ws://localhost:9222"),
-  LIVE_VIEW_BASE_URL: z.string().optional(),
+  // Browser Service
+  BROWSER_SERVICE_URL: z.string().optional(),
+  BROWSER_SERVICE_API_KEY: z.string().optional(),
+  BROWSER_SERVICE_WEBHOOK_SECRET: z.string().optional(),
 
   NUQ_PREFETCH_WORKER_HEARTBEAT_URL: z.string().optional(),
 });

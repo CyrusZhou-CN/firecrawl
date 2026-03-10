@@ -413,8 +413,13 @@ export type FormatObject =
   | AttributesFormatWithOptions
   | { type: "branding" };
 
+const pdfModeSchema = z.enum(["fast", "auto", "ocr"]);
+
+export type PDFMode = z.infer<typeof pdfModeSchema>;
+
 const pdfParserWithOptions = z.strictObject({
   type: z.literal("pdf"),
+  mode: pdfModeSchema.optional(),
   maxPages: z.int().positive().finite().max(10000).optional(),
 });
 
@@ -447,6 +452,17 @@ export function getPDFMaxPages(parsers?: Parsers): number | undefined {
     return (pdfParser as any).maxPages;
   }
   return undefined;
+}
+
+export function getPDFMode(parsers?: Parsers): PDFMode {
+  if (!parsers) return "auto";
+  for (const parser of parsers) {
+    if (parser === "pdf") return "auto";
+    if (typeof parser === "object" && parser.type === "pdf") {
+      return parser.mode ?? "auto";
+    }
+  }
+  return "auto";
 }
 
 function transformIframeSelector(selector: string): string {
@@ -528,6 +544,7 @@ const baseScrapeOptions = z.strictObject({
     .transform(tags => tags.map(transformIframeSelector))
     .optional(),
   onlyMainContent: z.boolean().prefault(true),
+  onlyCleanContent: z.boolean().prefault(false),
   timeout: z.int().positive().min(1000).optional(),
   waitFor: z.int().nonnegative().max(60000).prefault(0),
   mobile: z.boolean().prefault(false),
@@ -1209,6 +1226,16 @@ export type CrawlStatusResponse =
       next?: string;
       data: Document[];
       warning?: string;
+    }
+  | {
+      success: false;
+      status: "failed";
+      error: string;
+      completed: number;
+      total: number;
+      creditsUsed: number;
+      expiresAt: string;
+      data: Document[];
     };
 
 export type OngoingCrawlsResponse =

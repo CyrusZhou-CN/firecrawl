@@ -354,6 +354,31 @@ export class ZDRViolationError extends TransportableError {
   }
 }
 
+export class PDFOCRRequiredError extends TransportableError {
+  constructor(public pdfType: string) {
+    super(
+      "SCRAPE_PDF_OCR_REQUIRED",
+      `This PDF is ${pdfType === "Scanned" ? "scanned" : "image-based"} and requires OCR for text extraction, but the requested PDF mode is "fast" which only supports text-based PDFs. To process this PDF, use mode "auto" (which falls back to OCR automatically) or mode "ocr" (which forces OCR processing). Example: parsers: [{ type: "pdf", mode: "auto" }]`,
+    );
+  }
+
+  serialize() {
+    return {
+      ...super.serialize(),
+      pdfType: this.pdfType,
+    };
+  }
+
+  static deserialize(
+    _: ErrorCodes,
+    data: ReturnType<typeof this.prototype.serialize>,
+  ) {
+    const x = new PDFOCRRequiredError(data.pdfType);
+    x.stack = data.stack;
+    return x;
+  }
+}
+
 export class PDFPrefetchFailed extends TransportableError {
   constructor() {
     const message = isSelfHosted()
@@ -417,6 +442,25 @@ export class DocumentPrefetchFailed extends TransportableError {
     data: ReturnType<typeof this.prototype.serialize>,
   ) {
     const x = new DocumentPrefetchFailed();
+    x.stack = data.stack;
+    return x;
+  }
+}
+
+export class BrandingNotSupportedError extends TransportableError {
+  constructor(message: string) {
+    super("SCRAPE_BRANDING_NOT_SUPPORTED", message);
+  }
+
+  serialize() {
+    return super.serialize();
+  }
+
+  static deserialize(
+    _: ErrorCodes,
+    data: ReturnType<typeof this.prototype.serialize>,
+  ) {
+    const x = new BrandingNotSupportedError(data.message);
     x.stack = data.stack;
     return x;
   }
