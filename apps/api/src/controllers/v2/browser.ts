@@ -27,11 +27,11 @@ const BROWSER_CREDITS_PER_HOUR = 120;
 
 /**
  * Calculate credits to bill for a browser session based on its duration.
- * Prorates to the millisecond. Minimum charge is 1 credit.
+ * Prorates to the millisecond. Minimum charge is 2 credits.
  */
 function calculateBrowserSessionCredits(durationMs: number): number {
   const hours = durationMs / 3_600_000;
-  return Math.max(1, Math.ceil(hours * BROWSER_CREDITS_PER_HOUR));
+  return Math.max(2, Math.ceil(hours * BROWSER_CREDITS_PER_HOUR));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,15 +239,17 @@ export async function browserCreateController(
   }
 
   // 0b. Enforce per-team active session limit
+  const browserSessionLimit =
+    req.acuc?.flags?.maxBrowserSessions ?? MAX_ACTIVE_BROWSER_SESSIONS_PER_TEAM;
   const activeCount = await getActiveBrowserSessionCount(req.auth.team_id);
-  if (activeCount >= MAX_ACTIVE_BROWSER_SESSIONS_PER_TEAM) {
+  if (activeCount >= browserSessionLimit) {
     logger.warn("Active browser session limit reached", {
       activeCount,
-      limit: MAX_ACTIVE_BROWSER_SESSIONS_PER_TEAM,
+      limit: browserSessionLimit,
     });
     return res.status(429).json({
       success: false,
-      error: `You have reached the maximum number of active browser sessions (${MAX_ACTIVE_BROWSER_SESSIONS_PER_TEAM}). Please destroy existing sessions before creating new ones.`,
+      error: `You have reached the maximum number of active browser sessions (${browserSessionLimit}). Please destroy existing sessions before creating new ones.`,
     });
   }
 
@@ -462,6 +464,7 @@ export async function browserExecuteController(
   enqueueBrowserSessionActivity({
     team_id: req.auth.team_id,
     session_id: id,
+    source: "browser",
     language,
     timeout,
     exit_code: execResult.exitCode ?? null,
@@ -550,8 +553,11 @@ export async function browserDeleteController(
     });
   }
 
+  const wallClockMs = Date.now() - new Date(session.created_at).getTime();
   const durationMs =
-    sessionDurationMs ?? Date.now() - new Date(session.created_at).getTime();
+    sessionDurationMs && sessionDurationMs > 0
+      ? sessionDurationMs
+      : wallClockMs;
   const creditsBilled = calculateBrowserSessionCredits(durationMs);
 
   updateBrowserSessionCreditsUsed(session.id, creditsBilled).catch(error => {
@@ -567,6 +573,7 @@ export async function browserDeleteController(
     req.acuc?.sub_id ?? undefined,
     creditsBilled,
     req.acuc?.api_key_id ?? null,
+    { endpoint: "browser", jobId: session.id },
   ).catch(error => {
     logger.error("Failed to bill team for browser session", {
       error,
@@ -620,8 +627,8 @@ export async function browserListController(
       id: r.id,
       status: r.status,
       cdpUrl: r.cdp_url,
-      liveViewUrl: r.cdp_path, // cdp_path stores the view URL
-      interactiveLiveViewUrl: r.cdp_interactive_path, // cdp_interactive_path stores the interactive view URL
+      liveViewUrl: r.cdp_path,
+      interactiveLiveViewUrl: r.cdp_interactive_path,
       streamWebView: r.stream_web_view,
       createdAt: r.created_at,
       lastActivity: r.updated_at,
@@ -693,6 +700,7 @@ export async function browserWebhookDestroyedController(
     undefined, // subscription_id — billTeam will look it up
     creditsBilled,
     null, // api_key_id not available in webhook context
+    { endpoint: "browser", jobId: session.id },
   ).catch(error => {
     logger.error("Failed to bill team for browser session via webhook", {
       error,
