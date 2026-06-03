@@ -5,21 +5,19 @@ import { getCrawl, StoredCrawl } from "./crawl-redis";
 import { logger } from "./logger";
 import { abTestJob } from "../services/ab-test";
 import { scrapeQueue, type NuQJob } from "../services/worker/nuq";
-
-export class QueueFullError extends Error {
-  statusCode = 429;
-  constructor(queueSize: number, queueLimit: number) {
-    super(
-      `Queue limit reached: your team has ${queueSize} jobs queued (limit: ${queueLimit}). Please wait for existing jobs to complete before adding more, or upgrade your plan for a higher limit. For more info, see https://docs.firecrawl.dev/rate-limits#concurrent-browser-limits`,
-    );
-    this.name = "QueueFullError";
-  }
-}
+export { QueueFullError } from "./queue-full-error";
 
 // min 50k, max 2M, 2000 per concurrent browser
 export function getTeamQueueLimit(concurrencyLimit: number): number {
   return Math.min(Math.max(concurrencyLimit * 2000, 50_000), 2_000_000);
 }
+
+// Upper bound for how long a job may sit in the concurrency-limit backlog.
+// This bounds both the Redis ZSET score and the Postgres `times_out_at`
+// column on `nuq.queue_scrape_backlog`, so the reaper can always evict
+// stale rows. A backlogged crawl job that outlives this window is
+// unrecoverable anyway — its StoredCrawl in Redis (24h TTL) is gone.
+export const MAX_BACKLOG_TIMEOUT_MS = 172800000; // 48h
 
 const constructKey = (team_id: string) => "concurrency-limiter:" + team_id;
 const constructQueueKey = (team_id: string) =>
@@ -78,6 +76,25 @@ export async function removeConcurrencyLimitActiveJob(
   await getRedisConnection().zrem(constructKey(team_id), id);
 }
 
+export async function removeConcurrencyLimitedJobs(
+  team_id: string,
+  job_ids: string[],
+) {
+  if (job_ids.length === 0) return;
+  const redis = getRedisConnection();
+  const queueKey = constructQueueKey(team_id);
+  const chunkSize = 1000;
+  for (let i = 0; i < job_ids.length; i += chunkSize) {
+    const chunk = job_ids.slice(i, i + chunkSize);
+    const pipeline = redis.pipeline();
+    pipeline.zrem(queueKey, ...chunk);
+    for (const id of chunk) {
+      pipeline.del(constructJobKey(id));
+    }
+    await pipeline.exec();
+  }
+}
+
 type ConcurrencyLimitedJob = {
   id: string;
   data: any;
@@ -121,8 +138,8 @@ export async function pushConcurrencyLimitedJobs(
 
   for (const { job, timeout } of jobs) {
     const cappedTimeout = Number.isFinite(timeout)
-      ? Math.min(timeout, 172800000)
-      : 172800000; // cap at 48h, fallback for NaN/Infinity
+      ? Math.min(timeout, MAX_BACKLOG_TIMEOUT_MS)
+      : MAX_BACKLOG_TIMEOUT_MS;
     pipeline.set(
       constructJobKey(job.id),
       JSON.stringify(job),

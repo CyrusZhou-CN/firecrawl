@@ -83,6 +83,45 @@ $doc = $client->scrape('https://example.com/product', ScrapeOptions::with(
 echo $doc->getJson(); // Structured data
 ```
 
+### Video Extraction
+
+Use the `video` format on supported video URLs, including YouTube and TikTok. The returned `video` field is a signed URL to the extracted video file.
+
+```php
+$doc = $client->scrape('https://www.youtube.com/watch?v=dQw4w9WgXcQ', ScrapeOptions::with(
+    formats: ['video'],
+));
+
+echo $doc->getVideo();
+```
+
+### Parse
+
+Upload a local file (`html`, `pdf`, `docx`, etc.) via multipart form data and
+parse it synchronously. Parse options intentionally exclude browser-only
+features such as change tracking, screenshot, branding, audio, video, actions,
+waitFor, location, and mobile. The `proxy` option only accepts `"auto"` or `"basic"`.
+
+```php
+use Firecrawl\Models\ParseFile;
+use Firecrawl\Models\ParseOptions;
+
+// From disk
+$file = ParseFile::fromPath('./document.pdf');
+
+// Or from memory
+$file = ParseFile::fromBytes(
+    filename: 'upload.html',
+    content: '<html>hi</html>',
+    contentType: 'text/html',
+);
+
+$doc = $client->parse($file, ParseOptions::with(
+    formats: ['markdown'],
+));
+echo $doc->getMarkdown();
+```
+
 ### Crawl
 
 ```php
